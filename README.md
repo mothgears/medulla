@@ -55,18 +55,28 @@ module.exports.onRequest = (request, response)=>{
 with default settings
 ```json
 {
-  "serverApp"  : "index.js", //path to your app main module
-  "devMode"    : false,      //for using devPlugins and watch files
-  "forcewatch" : false,      //set true if fs.watch dont' work correctly
-  "hosts"      : {           //individual configs for specific hosts
+  "serverApp"  : "index.js",
+  "devMode"    : false,
+  "forcewatch" : false,
+  "hosts"      : {
     "hostname" : {"setting":"value"}
   },
-  "pluging"    : {           //plugins
+  "pluging"    : {
     "plugin-name" : "{plugin-settings}"
   }, 
-  "devPlugins" : {}          //plugins used only with devMode:true
+  "devPlugins" : {}
 }
 ```
+"serverApp"  - path to your app main module
+
+"devMode"    - for using devPlugins and watch files
+
+"forcewatch" - set true if fs.watch dont' work correctly
+
+"hosts"      - individual configs for specific hosts
+
+"devPlugins" - plugins used only with devMode:true
+
 
 ## License
 [MIT](LICENSE)
