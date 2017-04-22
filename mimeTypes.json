@@ -1,0 +1,31 @@
+{
+  "js"  : "application/javascript",
+  "es6" : "application/javascript",
+  "json": "application/json",
+
+  "css" : "text/css",
+  "html": "text/html",
+  "xml" : "application/xml",
+
+  "png" : "image/png",
+  "jpg" : "image/jpeg",
+  "gif" : "image/gif",
+  "svg" : "image/svg+xml",
+
+  "zip" : "application/zip",
+  "gzip": "application/gzip",
+  "tar" : "application/x-tar",
+  "rar" : "application/x-rar-compressed",
+
+  "txt" : "text/plain",
+  "csv" : "text/csv",
+  "pdf" : "application/pdf",
+
+  "mp3" : "audio/mpeg",
+  "ogg" : "audio/ogg",
+
+  "mpeg": "video/mpeg",
+  "wmv" : "video/x-ms-wmv",
+  "flv" : "video/x-flv",
+  "mp4" : "video/mp4"
+}
