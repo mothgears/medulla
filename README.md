@@ -10,7 +10,26 @@ npm install --save medulla
 ```
 
 ## Usage
-Add special settings in your app main module (index file/entry point)
+#### Index file and config
+Create an entry point (e.g. index.js):
+```js
+require('medulla')({
+    "serverDir"  :"../../",    //path to app dir
+    "serverApp"  : "./app.js", //path to your app main module
+    "devMode"    : false,      //for using devPlugins and watch files
+    "forcewatch" : false,      //set true if fs.watch don't work correctly
+    "hosts"      : {           //individual configs for specific hosts
+    	"hostname" : {"setting":"value"} 
+    },
+    "pluging"    : {
+    	"plugin-name" : "{plugin-settings}"
+    }, 
+    "devPlugins" : {}          //plugins used only with devMode:true
+});
+```
+
+#### Main module file
+Create the main module file (e.g. app.js) and add special settings
 ```es6
 module.exports.settings = {
 	port       : 3001,              //default: 3000
@@ -37,7 +56,7 @@ type:"cached" - add file content to variable (for each worker)
 
 Default path to file is url, but you may specify it directly use 'src' param.
 
-Describe worker function
+Describe the worker function
 ```es6
 module.exports.onRequest = (request, response)=>{
     response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
@@ -50,33 +69,10 @@ module.exports.onRequest = (request, response)=>{
     //{target:"mysite.net", includePlugins:(request.url === '/')} - for proxying this request
 };
 ```
-
-## Config file
-with default settings
-```json
-{
-  "serverApp"  : "index.js",
-  "devMode"    : false,
-  "forcewatch" : false,
-  "hosts"      : {
-    "hostname" : {"setting":"value"}
-  },
-  "pluging"    : {
-    "plugin-name" : "{plugin-settings}"
-  }, 
-  "devPlugins" : {}
-}
+#### Start server
 ```
-"serverApp"  - path to your app main module
-
-"devMode"    - for using devPlugins and watch files
-
-"forcewatch" - set true if fs.watch dont' work correctly
-
-"hosts"      - individual configs for specific hosts
-
-"devPlugins" - plugins used only with devMode:true
-
+node index.js
+```
 
 ## License
 [MIT](LICENSE)
