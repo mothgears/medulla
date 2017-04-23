@@ -67,13 +67,15 @@ Default path to file is url, but you may specify it directly use `src` param.
 Describe the worker function
 ```es6
 module.exports.onRequest = (request, response)=>{
+    if (request.url !== '/') return 404;
+
     response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
     response.write('<html><body>It works!</body></html>');
     
     return 1; 
     //1   - for including medulla-plugins code in responce body (use with page html)
     //404 - for "404 Not Found"
-    //0   - pure responce, use it other cases (json or other api data)
+    //0   - pure responce, use in other cases (json or other api data)
     //{target:"mysite.net", includePlugins:(request.url === '/')} - for proxying this request
 };
 ```
