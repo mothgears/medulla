@@ -1,6 +1,6 @@
 {
   "name": "medulla",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "node.js multithreaded server with proxy",
   "main": "index.es6",
   "dependencies": {},

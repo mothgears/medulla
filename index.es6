@@ -16,6 +16,7 @@ module.exports = customSettings=>{
 		plugins:[],
 		watch:true,
 		devMode:false,
+		proxyCookieDomain:'localhost',
 		devPlugins:[]
 	};
 	//GET CUSTOM SETTINGS
@@ -275,7 +276,7 @@ module.exports = customSettings=>{
 		const mod_url  = require('url');
 
 		let modulesParams = {};
-		global.include = (mdl, clientSide = null)=>{
+		global.medulla_require = (mdl, clientSide = null)=>{
 			mdl = require.resolve(settings.serverDir + mdl);
 			modulesParams[mdl] = clientSide;
 			return require(mdl);
@@ -435,7 +436,7 @@ module.exports = customSettings=>{
 		};
 
 		const writeHeaders = (res, proxyRes, modifyLength = null)=>{
-			let rewriteCookieDomainConfig = 'localhost',
+			let rewriteCookieDomainConfig = settings.proxyCookieDomain,
 				setHeader = (key, header)=>{
 					if (header === undefined) return;
 					if (rewriteCookieDomainConfig && key.toLowerCase() === 'set-cookie') {

@@ -34,7 +34,8 @@ require('medulla')({
     "pluging"    : {
     	"plugin-name" : "{plugin-settings}"
     }, 
-    "devPlugins" : {}          //plugins used only with devMode:true
+    "devPlugins" : {},         //plugins used only with devMode:true
+    "proxyCookieDomain" : "localhost"
 });
 ```
 
@@ -48,7 +49,8 @@ module.exports.settings = {
 };
 ```
 
-and file index (files must exist on server)
+and file index (files must exist on server)   
+(!) don't add modules here, required modules added automatically.
 ```es6
 module.exports.fileIndex = {
 	"readme.txt"        : {type:"file"},
@@ -62,7 +64,12 @@ module.exports.fileIndex = {
 ```
 `type:"file"`   - will read file from disc in every request  
 `type:"cached"` - add file content to variable (for each worker)  
-Default path to file is url, but you may specify it directly use `src` param.
+Default path to file is url, but you may specify it directly use `src` param.  
+
+To share some module file as js script (add access by url from client) use `module_require` function with params instead of `require`:
+```es6
+const myModule = medulla_require('./myModule.js', {url:'client-module.js', type:'cached'});
+```
 
 Describe the worker function
 ```es6
@@ -79,11 +86,13 @@ module.exports.onRequest = (request, response)=>{
     //{target:"mysite.net", includePlugins:(request.url === '/')} - for proxying this request
 };
 ```
+
 #### Start server
 For start server: run the "entry point" script
 ```
 node index.js
 ```
+and open the site in browser (e.g. localhost:3001)
 
 ## Plugins
 Plugins in development
