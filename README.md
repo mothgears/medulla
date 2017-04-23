@@ -1,17 +1,23 @@
-# medulla: a Node.js server
+# Medulla
 `medulla` is a node.js multithreaded server with proxy
 
-## Attention!
-module in dev, this is alpha version
+####Attention!
+Module in development, this is unstable version with incomplete functional.  
+Feedback:
+[mailbox@mothgears.com](mailto:mailbox@mothgears.com)
 
-## Installing
-```
-npm install --save medulla
-```
+## Example
+[`https://github.com/mothgears/medulla-example.git`](https://github.com/mothgears/medulla-example.git)
+
+## Installation
+npm  
+[`npm i -S medulla`](https://www.npmjs.com/package/medulla)
+ 
+git  
+[`git clone https://github.com/mothgears/medulla.git`](https://github.com/mothgears/medulla.git)
 
 ## Usage
-#### Base example
-git [`https://github.com/mothgears/medulla-example.git`](https://github.com/mothgears/medulla-example.git)
+With the `watch: true` setting, the server watch for files from fileIndex and automatically restart workers or update the cache each time it changes.
 
 #### Index file and config
 Create an entry point (e.g. index.js):
@@ -19,7 +25,7 @@ Create an entry point (e.g. index.js):
 require('medulla')({
     "serverDir"  :"../../",    //path to app dir
     "serverApp"  : "./app.js", //path to your app main module
-    "watch"      : true,       //for watch files on server (in fileIndex)
+    "watch"      : true,       //for watch files on server (from fileIndex)
     "devMode"    : false,      //for using devPlugins
     "forcewatch" : false,      //set true if fs.watch don't work correctly
     "hosts"      : {           //individual configs for specific hosts
@@ -45,20 +51,18 @@ module.exports.settings = {
 and file index (files must exist on server)
 ```es6
 module.exports.fileIndex = {
-    "readme.txt"        : {type:"file"},
-    "image.png"         : {type:"file", src:"images/sample.png"},
-    
-    "styles/main.css"   : {type:"cached"},
-    "client-script.es6" : {type:"cached", src:"bin/client-script.es6"},
-    
-    "scripts/*.js"      : {type:"cached", src:"bin/*.js"}
+	"readme.txt"        : {type:"file"},
+	"*.png"             : {type:"file", src:"images/*.png"},
+
+	"scripts/*.js"      : {type:"cached", src:"bin/*.js"},
+
+	"styles/main.css"   : {type:"cached"},
+	"client-script.es6" : {type:"cached", src:"bin/client-script.es6"}
 };
 ```
-type:"file"   - will read file from disc in every request
-
-type:"cached" - add file content to variable (for each worker)
-
-Default path to file is url, but you may specify it directly use 'src' param.
+`type:"file"`   - will read file from disc in every request  
+`type:"cached"` - add file content to variable (for each worker)  
+Default path to file is url, but you may specify it directly use `src` param.
 
 Describe the worker function
 ```es6
@@ -74,7 +78,7 @@ module.exports.onRequest = (request, response)=>{
 };
 ```
 #### Start server
-for start run the "entry point" script
+For start server: run the "entry point" script
 ```
 node index.js
 ```
