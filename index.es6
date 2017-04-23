@@ -14,6 +14,7 @@ module.exports = customSettings=>{
 		forcewatch:false,
 		watchFiles:false,
 		plugins:[],
+		watch:true,
 		devMode:false,
 		devPlugins:[]
 	};
@@ -398,7 +399,7 @@ module.exports = customSettings=>{
 		for (let filepath of staticModules) installModule(filepath);
 
 		//SEND FILEINDEX TO MASTER (ONLY ONE WORKER)
-		if (settings.devMode && process.env.mainWorker === '1') process.send({
+		if (settings.watch && process.env.mainWorker === '1') process.send({
 			type:'update_watchers',
 			fileIndex: JSON.stringify(watchedFiles)
 		});
@@ -543,4 +544,4 @@ module.exports = customSettings=>{
 
 		process.send({type:'worker_launched'});
 	}
-}
+};

@@ -10,13 +10,17 @@ npm install --save medulla
 ```
 
 ## Usage
+#### Base example
+git [`https://github.com/mothgears/medulla-example.git`](https://github.com/mothgears/medulla-example.git)
+
 #### Index file and config
 Create an entry point (e.g. index.js):
 ```js
 require('medulla')({
     "serverDir"  :"../../",    //path to app dir
     "serverApp"  : "./app.js", //path to your app main module
-    "devMode"    : false,      //for using devPlugins and watch files
+    "watch"      : true,       //for watch files on server (in fileIndex)
+    "devMode"    : false,      //for using devPlugins
     "forcewatch" : false,      //set true if fs.watch don't work correctly
     "hosts"      : {           //individual configs for specific hosts
     	"hostname" : {"setting":"value"} 
@@ -33,16 +37,16 @@ Create the main module file (e.g. app.js) and add special settings
 ```es6
 module.exports.settings = {
 	port       : 3001,              //default: 3000
-	watchFiles : false,             //add files with type:file to watchlist, default: false
+	watchFiles : false,             //add files with "type:file" to watchlist, default: false
 	mimeTypes  : "./mimeTypes.json" //path to mimeTypes file
 };
 ```
 
-and file index
+and file index (files must exist on server)
 ```es6
 module.exports.fileIndex = {
     "readme.txt"        : {type:"file"},
-    "image.png"         : {type:"file", src:"docs/96.png"},
+    "image.png"         : {type:"file", src:"images/sample.png"},
     
     "styles/main.css"   : {type:"cached"},
     "client-script.es6" : {type:"cached", src:"bin/client-script.es6"},
@@ -70,11 +74,13 @@ module.exports.onRequest = (request, response)=>{
 };
 ```
 #### Start server
+for start run the "entry point" script
 ```
 node index.js
 ```
 
-## License
-[MIT](LICENSE)
+## Plugins
+Plugins in development
 
-[permessage-deflate]: https://tools.ietf.org/html/rfc7692
+## License
+MIT
