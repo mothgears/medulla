@@ -183,7 +183,11 @@ module.exports = customSettings=>{
 									//UPDATE ALL WORKERS
 									if (fileparam.params.type === 'cached') {
 										let keys = Object.keys(cluster.workers);
-										for (let key of keys) cluster.workers[key].send({type: 'updateCache', path: fileparam.params.src || fid});
+										for (let key of keys) cluster.workers[key].send({
+											type : 'updateCache',
+											url  : fid,
+											path : fileparam.params.src || fid
+										});
 									}
 									for (let h of handlersModify) h(fid, fileparam);
 
@@ -298,10 +302,8 @@ module.exports = customSettings=>{
 
 		//MESSAGE HANDLER
 		process.on('message', function(msg) {
-			if      (msg.type === 'updateCache'  )   cache[msg.path] = fs.readFileSync(msg.path, 'utf8');
-			else if (msg.type === 'end') {
-				process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
-			}
+			if      (msg.type === 'updateCache') cache[(msg.url || msg.path)] = fs.readFileSync(msg.path, 'utf8');
+			else if (msg.type === 'end'        ) process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
 		});
 
 		const addToWatchedFiles = (fid, params) => {
