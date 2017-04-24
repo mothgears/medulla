@@ -6,24 +6,33 @@ module.exports = customSettings=>{
 	const threads = os.cpus().length;
 
 	//SETTINGS
-	let settings = global.settings = {
+	global.settings = {
 		port:3000,
 		serverDir:'../../',
 		serverApp:'./app.js',
-		hosts:[],
+		hosts:{},
 		forcewatch:false,
 		watchFiles:false,
-		plugins:[],
+		plugins:{'./mod-ws.es6':{}},
 		watch:true,
 		devMode:false,
 		proxyCookieDomain:'localhost',
-		devPlugins:[]
+		devPlugins:{}
 	};
-	//GET CUSTOM SETTINGS
+
+	//ADD CUSTOM SETTINGS
 	try {
 		let keys = Object.keys(customSettings);
-		for (let key of keys) settings[key] = customSettings[key];
+		for (let key of keys) {
+			let s = settings[key];
+			if (typeof s === 'object') {
+				let ks = Object.keys(customSettings[key]);
+				for (let k of ks) settings[key][k] = customSettings[key][k];
+			}
+			else settings[key] = customSettings[key];
+		}
 	} catch (err) {}
+
 	let hostSettings = settings.hosts[os.hostname()];
 	if (hostSettings) {
 		let keys = Object.keys(hostSettings);
