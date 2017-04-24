@@ -66,9 +66,9 @@ module.exports.fileIndex = {
 `type:"cached"` - add file content to variable (for each worker)  
 Default path to file is url, but you may specify it directly use `src` param.  
 
-To share some module file as js script (add access by url from client) use `module_require` function with params instead of `require`:
+To share module also as js script, use `module.require` function instead of `require`:
 ```es6
-const myModule = medulla_require('./myModule.js', {url:'client-module.js', type:'cached'});
+const myModule = medulla.require('./myModule.js', {url:'client-module.js', type:'cached'});
 ```
 
 Describe the worker function
