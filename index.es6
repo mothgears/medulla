@@ -5,23 +5,27 @@ module.exports = customSettings=>{
 	const os      = require("os");
 	const threads = os.cpus().length;
 
+	//GLOBAL SERVER INTERFACE
+	global.medulla = {};
+
 	//SETTINGS
-	global.settings = {
-		port:3000,
-		serverDir:'../../',
-		serverApp:'./app.js',
-		hosts:{},
-		forcewatch:false,
-		watchFiles:false,
-		plugins:{'./mod-ws.es6':{}},
-		watch:true,
-		devMode:false,
-		proxyCookieDomain:'localhost',
-		devPlugins:{}
+	let settings = medulla.settings = {
+		port              : 3000,
+		wsPort            : 9000,
+		serverDir         : '../../',
+		serverApp         : './app.js',
+		hosts             : {},
+		forcewatch        : false,
+		watchFiles        : false,
+		plugins           : {'./mod-ws.es6':{}},
+		watch             : true,
+		devMode           : false,
+		proxyCookieDomain : 'localhost',
+		devPlugins        : {}
 	};
 
 	//ADD CUSTOM SETTINGS
-	try {
+	if (customSettings) {
 		let keys = Object.keys(customSettings);
 		for (let key of keys) {
 			let s = settings[key];
@@ -31,7 +35,7 @@ module.exports = customSettings=>{
 			}
 			else settings[key] = customSettings[key];
 		}
-	} catch (err) {}
+	}
 
 	let hostSettings = settings.hosts[os.hostname()];
 	if (hostSettings) {
@@ -69,9 +73,6 @@ module.exports = customSettings=>{
 	pluginIndex = Object.keys(pluginsByPriority);
 	pluginIndex.sort();
 
-	//let mimeTypes = {};
-	//if (settings.mimeTypes) settings.mimeTypes = JSON.parse(fs.readFileSync(settings.mimeTypes, 'utf8'));
-
 	//MASTER
 	if (cluster.isMaster) {
 		let handlersModify   = [],
@@ -79,7 +80,7 @@ module.exports = customSettings=>{
 			handlersShutdown = [],
 			handlersError    = [];
 
-		let pluginsJS = 'window.settings = '+JSON.stringify(settings)+';',
+		let pluginsJS = '',
 			workerPlugins = [],
 			ordersToStart = 0,
 			watchers = {},
@@ -100,6 +101,7 @@ module.exports = customSettings=>{
 			if (p.medullaPlugin.onShutdown)  handlersShutdown.push(p.medullaPlugin.onShutdown);
 			if (p.medullaPlugin.onError)     handlersError.push(p.medullaPlugin.onError);
 		}
+		pluginsJS = 'window.medulla = {settings:'+JSON.stringify(settings)+'};'+pluginsJS;
 
 		const startServer = msg=>{
 			console.log(msg);
@@ -285,7 +287,7 @@ module.exports = customSettings=>{
 		const mod_url  = require('url');
 
 		let modulesParams = {};
-		global.medulla_require = (mdl, clientSide = null)=>{
+		medulla.require = (mdl, clientSide = null)=>{
 			mdl = require.resolve(settings.serverDir + mdl);
 			modulesParams[mdl] = clientSide;
 			return require(mdl);
@@ -327,10 +329,10 @@ module.exports = customSettings=>{
 			else if (params.type === 'cached') cache[fid] = fs.readFileSync(params.src || fid, 'utf8');
 		};
 
-		global.medullaIndexName = process.env.indexName;
-		global.medullaRestart = (indexName = global.medullaIndexName)=>{
-			global.medullaIndexName = indexName;
-			process.send({type:'restart', indexName: global.medullaIndexName});
+		medulla.indexName = process.env.indexName;
+		medulla.restart = (indexName = global.medulla.indexName)=>{
+			global.medulla.indexName = indexName;
+			process.send({type:'restart', indexName: global.medulla.indexName});
 		};
 
 		//REQUIRE MAIN MODULE
@@ -346,7 +348,7 @@ module.exports = customSettings=>{
 			if (settings.mimeTypes) settings.mimeTypes = require(settings.mimeTypes);
 		}
 		if (mm.fileIndex) {
-			if (global.medullaIndexName) mm.fileIndex = mm.fileIndex[global.medullaIndexName];
+			if (global.medulla.indexName) mm.fileIndex = mm.fileIndex[global.medulla.indexName];
 
 			let fileIndexFiles = Object.keys(mm.fileIndex);
 			for (let fid of fileIndexFiles) {
@@ -374,8 +376,6 @@ module.exports = customSettings=>{
 			}
 		}
 		if (mm.onRequest) handlerRequest = mm.onRequest;
-
-		//if (settings.devMode && process.env.mainWorker === '1') console.log('indexName: '+global.medullaIndexName);
 
 		const installModule = filepath=>{
 			let code = null;

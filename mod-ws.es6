@@ -4,39 +4,46 @@
 			useOnClient: true
 		};
 
-		//PLUGIN SETTINGS
-		global.settings.wsPort = global.settings.wsPort || 8888;
+		let ws_srv = null;
+		Object.defineProperty(medulla, "ws", {
+			get () {
+				if (!ws_srv) {
+					ws_srv = new (require('ws').Server)({port: global.medulla.settings.wsPort});
 
-		//Start web socket
-		global.ws_clients = {};
-		global.ws_server = new (require('ws').Server)({port: global.settings.wsPort});
-		let index = 0;
-		global.ws_server.on('connection', ws=>{
-			index++;
-			if (index >= 1000000) index = 1;
-			let id = index;
+					medulla.wsClients = {};
+					medulla.settings.useWebSocket = true;
 
-			ws.on('close', ()=>{
-				delete global.ws_clients[id];
-			});
+					let index = 0;
+					ws_srv.on('connection', ws=>{
+						index++;
+						if (index >= 1000000) index = 1;
+						let id = index;
 
-			if (global.ws_clients[id]) {
-				global.ws_clients[id].close();
-				delete global.ws_clients[id];
+						ws.on('close', ()=>{
+							delete medulla.wsClients[id];
+						});
+
+						if (medulla.wsClients[id]) {
+							medulla.wsClients[id].close();
+							delete medulla.wsClients[id];
+						}
+						medulla.wsClients[id] = ws;
+
+						ws.send('MEDSIG_WSID@'+id);
+					});
+				}
+				return ws_srv;
 			}
-			global.ws_clients[id] = ws;
-
-			ws.send('MEDSIG_WSID@'+id);
 		});
-
 	} else if (typeof window === 'object' && window) { //AS SCRIPT
-		window.webSocket = window.webSocket || new WebSocket('ws://localhost:'+(window.settings.wsPort || 8888));
-
-		window.webSocket.addEventListener('message', (event)=>{
-			let msg = event.data;
-			if (msg.startsWith('MEDSIG_WSID@')) {
-				window.webSocket.client_id = JSON.parse(msg.split('@')[1]);
-			}
-		});
+		if (window.medulla.settings.useWebSocket) {
+			window.medulla.ws = window.medulla.ws || new WebSocket('ws://localhost:'+window.medulla.settings.wsPort);
+			window.medulla.ws.addEventListener('message', function (event) {
+				let msg = event.data;
+				if (msg.startsWith('MEDSIG_WSID@')) {
+					window.medulla.ws.client_id = JSON.parse(msg.split('@')[1]);
+				}
+			});
+		}
 	}
 })();
