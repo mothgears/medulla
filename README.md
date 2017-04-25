@@ -1,5 +1,5 @@
 # Medulla
-`medulla` is a simple, no-dependency, multithreaded node.js server with proxy
+`medulla` is a simple, no-dependency, multithreaded node.js server with proxy.
 
 #### Attention!
 Module in development, this is unstable version with incomplete functional.  
@@ -24,19 +24,18 @@ With the `watch: true` setting, the server watch for files from fileIndex and au
 Create an entry point (e.g. index.js):
 ```js
 require('medulla')({
-    "serverDir"  :"../../",    //path to app dir
-    "serverApp"  : "./app.js", //path to your app main module
-    "watch"      : true,       //for watch files on server (from fileIndex)
-    "devMode"    : false,      //for using devPlugins
-    "forcewatch" : false,      //set true if fs.watch don't work correctly
-    "hosts"      : {           //individual configs for specific hosts
+    serverDir  :"../../",    //path to app dir
+    serverApp  : "./app.js", //path to your app main module
+    watch      : true,       //for watch files on server (from fileIndex)
+    forcewatch : false,      //set true if fs.watch don't work correctly
+    hosts      : {           //individual configs for specific hosts
     	"hostname" : {"setting":"value"} 
     },
-    "pluging"    : {
+    pluging    : {
     	"plugin-name" : "{plugin-settings}"
     }, 
-    "devPlugins" : {},         //plugins used only with devMode:true
-    "proxyCookieDomain" : "localhost"
+    devPlugins : {},         //plugins used only in de mode (-dev)
+    proxyCookieDomain : "localhost"
 });
 ```
 
@@ -89,11 +88,20 @@ module.exports.onRequest = (request, response)=>{
 ```
 
 #### Start server
-For start server: run the "entry point" script
+For start the server run the "entry point" script:
 ```
 node index.js
 ```
+
+or for start the server with dev plugins, launch it with parameter:
+```
+node index.js -dev
+```
 and open the site in browser (e.g. localhost:3001)
+
+#### Console commands
+  - `version` - show current module version  
+  - `stop` - shutdown server
 
 ## Plugins
 Dev plugin for hot reload page, scripts and styles - in development.

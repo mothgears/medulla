@@ -2,7 +2,7 @@
 module.exports = customSettings=>{
 	const cluster = require('cluster');
 	const fs      = require('fs');
-	const os      = require("os");
+	const os      = require('os');
 	const threads = os.cpus().length;
 
 	//GLOBAL SERVER INTERFACE
@@ -19,7 +19,7 @@ module.exports = customSettings=>{
 		watchFiles        : false,
 		plugins           : {'./mod-ws.es6':{}},
 		watch             : true,
-		devMode           : false,
+		devMode           : process.argv.indexOf('-dev') >= 0,
 		proxyCookieDomain : 'localhost',
 		devPlugins        : {}
 	};
@@ -75,6 +75,20 @@ module.exports = customSettings=>{
 
 	//MASTER
 	if (cluster.isMaster) {
+		//COMMANDS
+		process.openStdin().addListener("data", cmd=>{
+			cmd = cmd.toString().trim();
+			const acts = {
+				'version':()=>console.info(require('./package.json').version),
+				'stop'   :()=>{
+					let keys = Object.keys(cluster.workers);
+					for (let key of keys) cluster.workers[key].send({type:'end', exitcode:2});
+				}
+			};
+			(acts[cmd] || (()=>{console.log('command not defined')}))();
+		});
+
+		//
 		let handlersModify   = [],
 			handlersLaunch   = [],
 			handlersShutdown = [],
@@ -251,7 +265,7 @@ module.exports = customSettings=>{
 					} catch(e){}
 				}
 			}
-		}
+		};
 
 		cluster.on('exit', (w, code)=>{
 			exits++;
