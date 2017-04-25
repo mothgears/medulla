@@ -1,20 +1,21 @@
 # Medulla
-`medulla` is a node.js multithreaded server with proxy
+`medulla` is a simple, no-dependency, multithreaded node.js server with proxy
 
 #### Attention!
 Module in development, this is unstable version with incomplete functional.  
 Feedback:
 [mailbox@mothgears.com](mailto:mailbox@mothgears.com)
 
-## Example
-[`https://github.com/mothgears/medulla-example.git`](https://github.com/mothgears/medulla-example.git)
+## Example project
+[https://github.com/mothgears/medulla-example.git](https://github.com/mothgears/medulla-example.git)
 
 ## Installation
-npm  
-[`npm i -S medulla`](https://www.npmjs.com/package/medulla)
- 
-git  
-[`git clone https://github.com/mothgears/medulla.git`](https://github.com/mothgears/medulla.git)
+
+[npm](https://www.npmjs.com/package/medulla)  
+`npm i -S medulla`
+  
+[git](https://github.com/mothgears/medulla.git)  
+`git clone https://github.com/mothgears/medulla.git`
 
 ## Usage
 With the `watch: true` setting, the server watch for files from fileIndex and automatically restart workers or update the cache each time it changes.
@@ -95,7 +96,7 @@ node index.js
 and open the site in browser (e.g. localhost:3001)
 
 ## Plugins
-Plugins in development
+Dev plugin for hot reload page, scripts and styles - in development.
 
 ## License
 MIT

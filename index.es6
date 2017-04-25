@@ -112,7 +112,7 @@ module.exports = customSettings=>{
 					mainWorker: (i+1 === threads)?'1':'0'
 				};
 				if (indexName) pars['indexName'] = indexName;
-				cluster.fork(pars).on('message', handle);
+				cluster.fork(pars).on('message', medulla._handle);
 			}
 		};
 
@@ -144,7 +144,7 @@ module.exports = customSettings=>{
 			return true;
 		};
 
-		function handle(msg) {
+		medulla._handle = msg=>{
 			//UPDATE WATCHERS AFTER START WORKERS
 			if (msg.type === 'update_watchers') {
 				let fileIndex = JSON.parse(msg.fileIndex);
