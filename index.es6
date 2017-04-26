@@ -313,8 +313,6 @@ module.exports = customSettings=>{
 			return require(mdl);
 		};
 
-		//console.info(`worker ${process.pid} launched`);
-
 		//ERROR HANDLER
 		const errorHandle = (err, title, type)=>process.send({type, error:err.stack, title});
 		process.on('uncaughtException', err=>{
@@ -451,14 +449,11 @@ module.exports = customSettings=>{
 				} else if ('*' in config) {
 					newDomain = config['*'];
 				} else {
-					//no match, return previous domain
 					return match;
 				}
 				if (newDomain) {
-					//replace domain
 					return prefix + newDomain;
 				} else {
-					//remove domain
 					return '';
 				}
 			});
@@ -501,7 +496,6 @@ module.exports = customSettings=>{
 				response.writeHeader(200, {"Content-Type": (mt?mt:"text/html")+"; charset=utf-8"});
 				response.write(fs.readFileSync(files[path]));
 			} else if (cache[path]) {
-				//console.log('cache:'+path);
 				response.writeHeader(200, {"Content-Type": (mt?mt:"text/html")+"; charset=utf-8"});
 				response.write(cache[path]);
 			} else {

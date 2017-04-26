@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.3
+## v0.2.4
 ##### Fixes
 - fixed incorrect detecting a changes in the params of the fileIndex items.
 

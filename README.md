@@ -8,7 +8,7 @@ and server will do restart workers when detect changes in modules,
 and update cache when changed scripts (files with [prop](#file-index) `type:cached`).
 - Can work as a proxy server and forwarding requests to the specified domain.
 
-**(!)** *Module in development, this is unstable version with incomplete functional.*  
+**(!)** *module in development, this is unstable version with incomplete functional.*  
 Feedback:
 [mailbox@mothgears.com](mailto:mailbox@mothgears.com)
 
@@ -24,7 +24,7 @@ Feedback:
 `git clone https://github.com/mothgears/medulla.git`
 
 ## Usage
-With the `watch: true` setting, the server watch for files from fileIndex and automatically restart workers or update the cache each time it changes.
+With the `watch:true` setting, the server watch for files from fileIndex and automatically restart workers or update the cache each time it changes.
 
 #### Entry point and config
 Create an entry point (e.g. server.js) and add to it:
@@ -75,8 +75,8 @@ Default path to file is url, but you may specify it directly use `src` param.
 
 To share included modules also as js script, use `medulla.require` function instead of `require`:
 ```es6
-const myModule1 = medulla.require('./myModule.js', {url:'client-module.js', type:'cached'});
-const myModule2 = medulla.require('./myModule.js', {url:'client-module.js', type:'file'});
+const myModule1 = medulla.require('./myModule1.js', {url:'client-module1.js', type:'cached'});
+const myModule2 = medulla.require('./myModule2.js', {url:'client-module2.js', type:'file'});
 ```
 
 Describe the worker function
