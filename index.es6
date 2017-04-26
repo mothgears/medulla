@@ -154,7 +154,13 @@ module.exports = customSettings=>{
 
 		const paramsEqual = (a,b)=>{
 			let keys = Object.keys(a);
-			for (let key of keys) if (a[key] !== b[key]) return false;
+			for (let key of keys) {
+				if (a[key] !== b[key]) return false;
+			}
+			keys = Object.keys(b);
+			for (let key of keys) {
+				if (a[key] !== b[key]) return false;
+			}
 			return true;
 		};
 

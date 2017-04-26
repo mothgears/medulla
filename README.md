@@ -1,8 +1,14 @@
 # Medulla
-`medulla` is a simple, no-dependency, multithreaded node.js server with proxy.
+`medulla` is a simple, no-dependency, node.js server.
 
-#### Attention!
-Module in development, this is unstable version with incomplete functional.  
+## Features
+- The server use several workers for multithreaded request handling.
+- Do no need daemons, set [flag](#index-file-and-config) `watch:true` 
+and server will do restart workers when detect changes in modules, 
+and update cache when changed scripts (files with [prop](#file-index) `type:cached`).
+- Can work as a proxy server and forwarding requests to the specified domain.
+
+**(!)** *Module in development, this is unstable version with incomplete functional.*  
 Feedback:
 [mailbox@mothgears.com](mailto:mailbox@mothgears.com)
 
@@ -20,8 +26,8 @@ Feedback:
 ## Usage
 With the `watch: true` setting, the server watch for files from fileIndex and automatically restart workers or update the cache each time it changes.
 
-#### Index file and config
-Create an entry point (e.g. index.js):
+#### Entry point and config
+Create an entry point (e.g. server.js) and add to it:
 ```js
 require('medulla')({
     serverDir  :"../../",    //path to app dir
@@ -39,8 +45,8 @@ require('medulla')({
 });
 ```
 
-#### Main module file
-Create the main module file (e.g. app.js) and add special settings
+#### Main module
+Create the main module of your app (e.g. app.js) and add to it special settings
 ```es6
 module.exports.settings = {
 	port       : 3001,              //default: 3000
@@ -49,8 +55,9 @@ module.exports.settings = {
 };
 ```
 
-and file index (files must exist on server)   
-(!) don't add modules here, required modules added automatically.
+#### File index
+Then add 'file index' to main module (files must exist on server).  
+**(!)** *don't add modules here, required modules added automatically.*
 ```es6
 module.exports.fileIndex = {
 	"readme.txt"        : {type:"file"},
@@ -66,9 +73,10 @@ module.exports.fileIndex = {
 `type:"cached"` - add file content to variable (for each worker)  
 Default path to file is url, but you may specify it directly use `src` param.  
 
-To share module also as js script, use `medulla.require` function instead of `require`:
+To share included modules also as js script, use `medulla.require` function instead of `require`:
 ```es6
-const myModule = medulla.require('./myModule.js', {url:'client-module.js', type:'cached'});
+const myModule1 = medulla.require('./myModule.js', {url:'client-module.js', type:'cached'});
+const myModule2 = medulla.require('./myModule.js', {url:'client-module.js', type:'file'});
 ```
 
 Describe the worker function
@@ -88,14 +96,14 @@ module.exports.onRequest = (request, response)=>{
 ```
 
 #### Start server
-For start the server run the "entry point" script:
+For start the server run the your "entry point" script:
 ```
-node index.js
+node server.js
 ```
 
 or for start the server with dev plugins, launch it with parameter:
 ```
-node index.js -dev
+node server.js -dev
 ```
 and open the site in browser (e.g. localhost:3001)
 
