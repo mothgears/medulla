@@ -3,7 +3,7 @@
 
 ## Features
 - The server use several workers for multithreaded request handling.
-- Do no need daemons, set [flag](#index-file-and-config) `watch:true` 
+- Do no need daemons, set [flag](#entry-point-and-config) `watch:true` 
 and server will do restart workers when detect changes in modules, 
 and update cache when changed scripts (files with [prop](#file-index) `type:cached`).
 - Can work as a proxy server and forwarding requests to the specified domain.
