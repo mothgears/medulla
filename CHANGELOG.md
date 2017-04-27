@@ -1,8 +1,8 @@
 # Changelog
 
-## v 0.2.5
+## v 0.2.6
 ##### Changes
-- special settings have been moved from main module to server settings (entry point file
+- special settings have been moved from main module to server settings (entry point file)
 - mimeType setting changed from file to object and now extend base types from mimeType.json file
 
 ## v 0.2.4
