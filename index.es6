@@ -21,7 +21,8 @@ module.exports = customSettings=>{
 		watch             : true,
 		devMode           : process.argv.indexOf('-dev') >= 0,
 		proxyCookieDomain : 'localhost',
-		devPlugins        : {}
+		devPlugins        : {},
+		mimeTypes         : require('./mimeTypes.json')
 	};
 
 	//ADD CUSTOM SETTINGS
@@ -305,6 +306,7 @@ module.exports = customSettings=>{
 		const mod_path = require('path');
 		const mod_http = require('http');
 		const mod_url  = require('url');
+		const mod_zlib = require('zlib');
 
 		let modulesParams = {};
 		medulla.require = (mdl, clientSide = null)=>{
@@ -359,12 +361,12 @@ module.exports = customSettings=>{
 		try {mm = require(settings.serverDir + settings.serverApp)} catch(err) {
 			errorHandle(err, 'MODULE ERROR', 'pause');
 		}
-		if (mm.settings) {
+		/*if (mm.settings) {
 			let keys = Object.keys(mm.settings);
 			for (let key of keys) settings[key] = mm.settings[key];
 
 			if (settings.mimeTypes) settings.mimeTypes = require(settings.mimeTypes);
-		}
+		}*/
 		if (mm.fileIndex) {
 			if (global.medulla.indexName) mm.fileIndex = mm.fileIndex[global.medulla.indexName];
 
@@ -480,22 +482,27 @@ module.exports = customSettings=>{
 			});
 		};
 
-		const zlib = require('zlib');
+		const nomt = ext=>console.info(`Mime type for extension "${ext}" not found, extend mime types.`);
 
 		//SERVER
 		mod_http.createServer((request, response)=>{
 			let wait = false;
 
 			let path = request.url.slice(1);
-			let mt = settings.mimeTypes[mod_path.extname(path).slice(1)];
+			let ext = mod_path.extname(path).slice(1);
+			let mt = settings.mimeTypes[ext];
 
-			if (path === 'medulla-plugins.js') {
+			/*if (path === 'medulla-plugins.js') {
 				response.writeHeader(200, {"Content-Type": (mt?mt:"application/javascript")+"; charset=utf-8"});
 				response.write(process.env.pluginsJS);
-			} else if (files[path]) {
+			} else*/
+
+			if (files[path]) {
+				if (!mt) nomt(ext);
 				response.writeHeader(200, {"Content-Type": (mt?mt:"text/html")+"; charset=utf-8"});
 				response.write(fs.readFileSync(files[path]));
 			} else if (cache[path]) {
+				if (!mt) nomt(ext);
 				response.writeHeader(200, {"Content-Type": (mt?mt:"text/html")+"; charset=utf-8"});
 				response.write(cache[path]);
 			} else {
@@ -538,7 +545,7 @@ module.exports = customSettings=>{
 								body = Buffer.concat(body);
 								if (modify) {
 									if (targetResponse.headers['content-encoding'] === 'gzip')
-										body = zlib.gzipSync(Buffer.concat([zlib.unzipSync(body), b]));
+										body = mod_zlib.gzipSync(Buffer.concat([mod_zlib.unzipSync(body), b]));
 									else
 										body = Buffer.concat([body, b]);
 								}

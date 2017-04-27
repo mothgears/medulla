@@ -1,9 +1,9 @@
 # Medulla
-`medulla` is a simple, no-dependency, node.js server.
+`medulla` is a simple, no-dependency node.js server.
 
 ## Features
 - The server use several workers for multithreaded request handling.
-- Do no need daemons, set [flag](#entry-point-and-config) `watch:true` 
+- Do no need daemons, set [flag](#list-of-all-settings-with-default-values) `watch:true` 
 and server will do restart workers when detect changes in modules, 
 and update cache when changed scripts (files with [prop](#file-index) `type:cached`).
 - Can work as a proxy server and forwarding requests to the specified domain.
@@ -27,36 +27,50 @@ Feedback:
 With the `watch:true` setting, the server watch for files from fileIndex and automatically restart workers or update the cache each time it changes.
 
 #### Entry point and config
-Create an entry point (e.g. server.js) and add to it:
+Create an entry point (e.g. server.js) and require medulla with settings:
 ```js
 require('medulla')({
-    serverDir  :"../../",    //path to app dir
-    serverApp  : "./app.js", //path to your app main module
-    watch      : true,       //for watch files on server (from fileIndex)
-    forcewatch : false,      //set true if fs.watch don't work correctly
-    hosts      : {           //individual configs for specific hosts
-    	"hostname" : {"setting":"value"} 
-    },
-    pluging    : {
-    	"plugin-name" : "{plugin-settings}"
-    }, 
-    devPlugins : {},         //plugins used only in de mode (-dev)
-    proxyCookieDomain : "localhost"
+    serverApp : "./myApp.js" //path to your app main module
 });
 ```
 
-#### Main module
-Create the main module of your app (e.g. app.js) and add to it special settings
-```es6
-module.exports.settings = {
-	port       : 3001,              //default: 3000
-	watchFiles : false,             //add files with "type:file" to watchlist, default: false
-	mimeTypes  : "./mimeTypes.json" //path to mimeTypes file
-};
-```
+#### List of all settings with default values
 
-#### File index
-Then add 'file index' to main module (files must exist on server).  
+- `serverApp: "./app.js"`  
+Path to your app main module.
+
+- `serverDir: "../../"`  
+Path to app dir.
+
+- `port: 3000`  
+Server port.
+
+- `mimeTypes: {}`   
+Additional mime types in format {"ext":"mime"}.
+
+- `watch: true`  
+If set "true" server will watch for modules and files changes (from fileIndex).
+
+- `watchFiles: false`  
+If set "true" server will watch also for files with "type:file".
+
+- `forcewatch: false`  
+Set true if "fs.watch" don't work correctly and server not reacting on file changes.
+
+- `hosts: {}`  
+Individual configs for specific hosts in format "hostname" : {"setting":"value"}.
+
+- `pluging: {}`  
+Server plugins in format "pluginModuleName" : "{plugin-settings}".
+
+- `devPlugins: {}`  
+This plugins used only in dev mode (-dev).
+
+- `proxyCookieDomain: "localhost"`
+Proxy cookie domain name.
+
+#### Main module
+Create the main module of your app (e.g. app.js) and add to it fileIndex (files must exist on server).  
 **(!)** *don't add modules here, required modules added automatically.*
 ```es6
 module.exports.fileIndex = {

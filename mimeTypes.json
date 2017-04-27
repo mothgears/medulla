@@ -1,6 +1,5 @@
 {
   "js"  : "application/javascript",
-  "es6" : "application/javascript",
   "json": "application/json",
 
   "css" : "text/css",
