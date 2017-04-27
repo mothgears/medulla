@@ -5,7 +5,7 @@
 - The server use several workers for multithreaded request handling.
 - Do no need daemons, set [flag](#list-of-all-settings-with-default-values) `watch:true` 
 and server will do restart workers when detect changes in modules, 
-and update cache when changed scripts (files with [prop](#file-index) `type:cached`).
+and update cache when changed scripts (files with [prop](#main-module) `type:cached`).
 - Can work as a proxy server and forwarding requests to the specified domain.
 
 **(!)** *module in development, this is unstable version with incomplete functional.*  
@@ -24,13 +24,11 @@ Feedback:
 `git clone https://github.com/mothgears/medulla.git`
 
 ## Usage
-With the `watch:true` setting, the server watch for files from fileIndex and automatically restart workers or update the cache each time it changes.
-
 #### Entry point and config
 Create an entry point (e.g. server.js) and require medulla with settings:
 ```js
 require('medulla')({
-    serverApp : "./myApp.js" //path to your app main module
+    serverApp : "./myApp.js"
 });
 ```
 
@@ -49,10 +47,10 @@ Server port.
 Additional mime types in format {"ext":"mime"}.
 
 - `watch: true`  
-If set "true" server will watch for modules and files changes (from fileIndex).
+If set "true", the server watch for files from fileIndex and automatically restart workers or update the cache each time it changes.
 
 - `watchFiles: false`  
-If set "true" server will watch also for files with "type:file".
+If set "true", the server will watch also for files with "type:file".
 
 - `forcewatch: false`  
 Set true if "fs.watch" don't work correctly and server not reacting on file changes.
@@ -70,7 +68,7 @@ This plugins used only in dev mode (-dev).
 Proxy cookie domain name.
 
 #### Main module
-Create the main module of your app (e.g. app.js) and add to it fileIndex (files must exist on server).  
+Create the main module of your app (e.g. myApp.js) and add to it fileIndex (files must exist on server).  
 **(!)** *don't add modules here, required modules added automatically.*
 ```es6
 module.exports.fileIndex = {
