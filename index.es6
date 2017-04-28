@@ -298,16 +298,18 @@ module.exports = customSettings=>{
 		startServer('medulla started');
 
 	} else {
-		//PLUGINS
-		let workerPlugins = JSON.parse(process.env.workerPlugins);
-		for (let plugin of workerPlugins) require(plugin);
-
+		//LIBS
 		const getSubmodules = require('./mod-requires.es6');
 		const mod_path = require('path');
 		const mod_http = require('http');
 		const mod_url  = require('url');
 		const mod_zlib = require('zlib');
 
+		//PLUGINS
+		let workerPlugins = JSON.parse(process.env.workerPlugins);
+		for (let plugin of workerPlugins) require(plugin);
+
+		//medulla.require
 		let modulesParams = {};
 		medulla.require = (mdl, clientSide = null)=>{
 			mdl = require.resolve(settings.serverDir + mdl);
@@ -334,7 +336,10 @@ module.exports = customSettings=>{
 
 		//MESSAGE HANDLER
 		process.on('message', function(msg) {
-			if      (msg.type === 'updateCache') cache[(msg.url || msg.path)] = fs.readFileSync(msg.path, 'utf8');
+			if      (msg.type === 'updateCache') cache[(msg.url || msg.path)] = {
+				content: fs.readFileSync(msg.path, 'utf8'),
+				srcPath: msg.path
+			};
 			else if (msg.type === 'end'        ) process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
 		});
 
@@ -346,7 +351,10 @@ module.exports = customSettings=>{
 			};
 
 			if      (params.type === 'file'  ) files[fid] = params.src || fid;
-			else if (params.type === 'cached') cache[fid] = fs.readFileSync(params.src || fid, 'utf8');
+			else if (params.type === 'cached') cache[fid] = {
+				content: fs.readFileSync(params.src || fid, 'utf8'),
+				srcPath: params.src || fid
+			};
 		};
 
 		medulla.indexName = process.env.indexName;
@@ -356,11 +364,16 @@ module.exports = customSettings=>{
 		};
 
 		//REQUIRE MAIN MODULE
+		let mm = {};
 
-		let mm;
-		try {mm = require(settings.serverDir + settings.serverApp)} catch(err) {
-			errorHandle(err, 'MODULE ERROR', 'pause');
+		if (typeof settings.serverApp === 'string') {
+			try {mm = require(settings.serverDir + settings.serverApp)} catch(err) {
+				errorHandle(err, 'MODULE ERROR', 'pause');
+			}
+		} else if (typeof settings.serverApp === 'function') {
+			settings.serverApp(mm);
 		}
+
 		/*if (mm.settings) {
 			let keys = Object.keys(mm.settings);
 			for (let key of keys) settings[key] = mm.settings[key];
@@ -374,22 +387,40 @@ module.exports = customSettings=>{
 			for (let fid of fileIndexFiles) {
 				let params = mm.fileIndex[fid];
 
-				if (fid.indexOf('*') >= 0) {
+				if (fid.indexOf('*') >= 0) { //TEMPLATE PROCESSING
 					let pathTo = (params.src || fid).split('*');
 					let dir = pathTo[0];
-					if (!dir) dir = __dirname;
-					let files = fs.readdirSync(dir);
-					files.forEach(filename => {
-						if (mod_path.extname(filename) === pathTo[1]) {
-							let name = mod_path.basename(filename, pathTo[1]);
+					let ext = pathTo[1];
+					let recursive = dir.endsWith('~');
+					if (recursive) dir = dir.slice(0, -1);
+					if (!dir) dir = './'; //currentDir
 
-							let fileParams = Object.assign({}, params);
-							fileParams.src = pathTo[0]+filename;
-							let fileId = fid.replace('*', name);
+					const processDir = (dir, sdir='')=>{
+						let files = fs.readdirSync(dir);
 
-							addToWatchedFiles(fileId, fileParams);
-						}
-					});
+						//FOR EACH FILE
+						files.forEach(filename => {
+							let path = dir+filename;
+							let stat = fs.statSync(path);
+							if (stat && stat.isDirectory()) {
+								if (recursive) processDir(path+'/', sdir+filename+'/');
+							}
+
+							else if (stat && stat.isFile() && mod_path.extname(filename) === ext) {
+								let name = mod_path.basename(filename, ext);
+
+								let fileParams = Object.assign({}, params);
+								fileParams.src = dir+filename;
+								let fileId = fid.replace('*', name);
+								if (recursive) fileId = fileId.replace('~', sdir);
+
+								addToWatchedFiles(fileId, fileParams);
+							}
+						});
+					};
+
+					processDir(dir);
+
 				} else {
 					addToWatchedFiles(fid, params);
 				}
@@ -416,7 +447,10 @@ module.exports = customSettings=>{
 
 			if (m.clientSide) {
 				if      (m.clientSide.type === 'file'    ) files[m.clientSide.url] = filepath;
-				else if (m.clientSide.type === 'cached'  ) cache[m.clientSide.url] = code;
+				else if (m.clientSide.type === 'cached'  ) cache[m.clientSide.url] = {
+					content: code,
+					srcPath: filepath
+				};
 			}
 
 			//INSTALL DYNAMIC MODULES (INCLUDED IN FUNCTION)
@@ -489,8 +523,8 @@ module.exports = customSettings=>{
 			let wait = false;
 
 			let path = request.url.slice(1);
-			let ext = mod_path.extname(path).slice(1);
-			let mt = settings.mimeTypes[ext];
+			let ext  = mod_path.extname(path).slice(1);
+			let mt   = ext?settings.mimeTypes[ext]:null;
 
 			/*if (path === 'medulla-plugins.js') {
 				response.writeHeader(200, {"Content-Type": (mt?mt:"application/javascript")+"; charset=utf-8"});
@@ -502,9 +536,12 @@ module.exports = customSettings=>{
 				response.writeHeader(200, {"Content-Type": (mt?mt:"text/html")+"; charset=utf-8"});
 				response.write(fs.readFileSync(files[path]));
 			} else if (cache[path]) {
+				let ext = mod_path.extname(cache[path].srcPath).slice(1);
+				let mt  = (ext && settings.mimeTypes[ext])?settings.mimeTypes[ext]:mt;
+
 				if (!mt) nomt(ext);
 				response.writeHeader(200, {"Content-Type": (mt?mt:"text/html")+"; charset=utf-8"});
-				response.write(cache[path]);
+				response.write(cache[path].content);
 			} else {
 				try {
 					let result = handlerRequest(request, response);

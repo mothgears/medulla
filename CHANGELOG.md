@@ -1,5 +1,16 @@
 # Changelog
 
+## v 0.2.7
+##### Changes
+- mimeType is firstly determined by src file extension, if not, then by url
+
+##### Improvements
+- added optional possibility to use function `serverApp:(export)=>{...}` instead of path to main module (but not recommended)
+- added fileIndex templates with recursive search `'*.png': {src:/mydir/~*png}`
+
+##### Fixes
+- fixed incorrect current dir detection in fileIndex templates
+
 ## v 0.2.6
 ##### Changes
 - special settings have been moved from main module to server settings (entry point file)

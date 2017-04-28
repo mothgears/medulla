@@ -16,7 +16,6 @@ Feedback:
 [https://github.com/mothgears/medulla-example.git](https://github.com/mothgears/medulla-example.git)
 
 ## Installation
-
 [npm](https://www.npmjs.com/package/medulla)  
 `npm i -S medulla`
   
@@ -26,14 +25,13 @@ Feedback:
 ## Usage
 #### Entry point and config
 Create an entry point (e.g. server.js) and require medulla with settings:
-```js
+```es6
 require('medulla')({
     serverApp : "./myApp.js"
 });
 ```
 
 #### List of all settings with default values
-
 - `serverApp: "./app.js"`  
 Path to your app main module.
 
@@ -64,7 +62,7 @@ Server plugins in format "pluginModuleName" : "{plugin-settings}".
 - `devPlugins: {}`  
 This plugins used only in dev mode (-dev).
 
-- `proxyCookieDomain: "localhost"`
+- `proxyCookieDomain: "localhost"`  
 Proxy cookie domain name.
 
 #### Main module
@@ -72,13 +70,16 @@ Create the main module of your app (e.g. myApp.js) and add to it fileIndex (file
 **(!)** *don't add modules here, required modules added automatically.*
 ```es6
 module.exports.fileIndex = {
-	"readme.txt"        : {type:"file"},
-	"*.png"             : {type:"file", src:"images/*.png"},
-
-	"scripts/*.js"      : {type:"cached", src:"bin/*.js"},
-
-	"styles/main.css"   : {type:"cached"},
-	"client-script.es6" : {type:"cached", src:"bin/client-script.es6"}
+    //indexed files in format is 'url:{params}'
+    
+    //Templates
+    "~*.png"            : {type:"file", src:"images/~*.png"}, //all png files from "images" folder and subfolders
+    "scripts/*.js"      : {type:"cached", src:"bin/*.js"}, //all js files directly from "bin" folder
+    
+    //Concrete files
+    "readme.txt"        : {type:"file"},
+    "styles/main.css"   : {type:"cached"},
+    "client-script.es6" : {type:"cached", src:"bin/client-script.es6"}
 };
 ```
 `type:"file"`   - will read file from disc in every request  

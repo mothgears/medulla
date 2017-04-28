@@ -1,6 +1,6 @@
 {
   "name": "medulla",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "node.js multithreaded server with proxy",
   "main": "index.es6",
   "dependencies": {},
@@ -9,7 +9,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "server", "multithreaded"
+    "server", "multithreaded", "proxy"
   ],
   "author": "Artem Varshavin",
   "license": "MIT",
