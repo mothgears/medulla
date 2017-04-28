@@ -70,7 +70,7 @@ Create the main module of your app (e.g. myApp.js) and add to it fileIndex (file
 **(!)** *don't add modules here, required modules added automatically.*
 ```es6
 module.exports.fileIndex = {
-    //indexed files in format is 'url:{params}'
+    //indexed files in format 'url:{params}'
     
     //Templates
     "~*.png"            : {type:"file", src:"images/~*.png"}, //all png files from "images" folder and subfolders
@@ -82,8 +82,11 @@ module.exports.fileIndex = {
     "client-script.es6" : {type:"cached", src:"bin/client-script.es6"}
 };
 ```
-`type:"file"`   - will read file from disc in every request  
-`type:"cached"` - add file content to variable (for each worker)  
+- `type:"file"`  
+Will read file from disc in every request.  
+- `type:"cached"`  
+Add file content to variable (for each worker).
+  
 Default path to file is url, but you may specify it directly use `src` param.  
 
 To share included modules also as js script, use `medulla.require` function instead of `require`:
