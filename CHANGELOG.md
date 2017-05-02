@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.2.8
+##### Changes
+- setting ```devMode:true``` is actual
+
 ## v 0.2.7
 ##### Changes
 - mimeType is firstly determined by src file extension, if not, then by url

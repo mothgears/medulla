@@ -12,9 +12,6 @@ and update cache when changed scripts (files with [prop](#main-module) `type:cac
 Feedback:
 [mailbox@mothgears.com](mailto:mailbox@mothgears.com)
 
-## Example project
-[https://github.com/mothgears/medulla-example.git](https://github.com/mothgears/medulla-example.git)
-
 ## Installation
 [npm](https://www.npmjs.com/package/medulla)  
 `npm i -S medulla`
@@ -61,6 +58,9 @@ Server plugins in format "pluginModuleName" : "{plugin-settings}".
 
 - `devPlugins: {}`  
 This plugins used only in dev mode (-dev).
+
+- `devMode: false`  
+If set "true", the devPlugins will be included.
 
 - `proxyCookieDomain: "localhost"`  
 Proxy cookie domain name.
