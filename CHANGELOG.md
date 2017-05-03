@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.2.9
+##### Fixes
+- fixed error handling
+
 ## V 0.2.8
 ##### Changes
 - setting ```devMode:true``` is actual

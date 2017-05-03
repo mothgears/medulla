@@ -242,6 +242,8 @@ module.exports = customSettings=>{
 				if (lauched === threads) {
 					lauched = 0;
 					if (onRestartEnd.length > 0) {
+						console.log('WRR LAUNCHED');
+
 						for (let h of onRestartEnd) h();
 						onRestartEnd.length = 0;
 					}
@@ -249,7 +251,6 @@ module.exports = customSettings=>{
 					for (let h of handlersLaunch) h();
 				}
 
-				//ERROR HANDLING
 			} else {
 				if (!error && msg.error) error = {value:msg.error, title:msg.title};
 
@@ -260,9 +261,11 @@ module.exports = customSettings=>{
 				else if (msg.type === 'stop'   ) exitcode = '2';
 				else if (msg.type === 'restart') exitcode = '3';
 				else if (msg.type === 'none') {
-					if (error) outputError(error);
-					for (let h of handlersError) h(error);
-					error = null;
+					if (error) {
+						outputError(error);
+						for (let h of handlersError) h(error);
+						error = null;
+					}
 				}
 
 				if (exitcode) {
@@ -278,11 +281,14 @@ module.exports = customSettings=>{
 			exits++;
 			if (exits >= threads) { //ALL WORKERS CLOSED
 				exits = 0;
+				lauched = 0;
 
-				if (error) outputError(error);
-				for (let h of handlersShutdown) h(error);
-				for (let h of handlersError)    h(error);
-				error = null;
+				if (error) {
+					outputError(error);
+					for (let h of handlersShutdown) h(error);
+					for (let h of handlersError)    h(error);
+					error = null;
+				}
 
 				if (code === 3) { //RESTART
 					startServer('workers restarted');
@@ -323,16 +329,16 @@ module.exports = customSettings=>{
 			if (err.stack.indexOf('bind EADDRINUSE null') >= 0) {//Port error
 				errorHandle(err, 'PORT ERROR'  , 'restart');
 			} else if (err.stack.split('at ')[1].indexOf('medulla.') >= 0) {
-				errorHandle(err, 'SERVER ERROR', 'stop');
+				errorHandle(err, 'SERVER ERROR', 'stop'); //Critical, stop server
 			} else {
-				errorHandle(err, 'MODULE ERROR', 'none');
+				errorHandle(err, 'MODULE ERROR', 'none'); //Nothing
 			}
 		});
 
-		let handlerRequest  = null,
-			watchedFiles    = {},
-			cache           = {},
-			files           = {};
+		let handlerRequest = null,
+			watchedFiles   = {},
+			cache          = {},
+			files          = {};
 
 		//MESSAGE HANDLER
 		process.on('message', function(msg) {
@@ -366,12 +372,15 @@ module.exports = customSettings=>{
 		//REQUIRE MAIN MODULE
 		let mm = {};
 
-		if (typeof settings.serverApp === 'string') {
-			try {mm = require(settings.serverDir + settings.serverApp)} catch(err) {
-				errorHandle(err, 'MODULE ERROR', 'pause');
+		try {
+			if (typeof settings.serverApp === 'string') {
+				mm = require(settings.serverDir + settings.serverApp)
+			} else if (typeof settings.serverApp === 'function') {
+				settings.serverApp(mm);
 			}
-		} else if (typeof settings.serverApp === 'function') {
-			settings.serverApp(mm);
+		} catch(err) {
+			errorHandle(err, 'MODULE ERROR', 'pause');
+			process.exit(1);
 		}
 
 		/*if (mm.settings) {
