@@ -1,12 +1,12 @@
 # Changelog
 
-## V 0.2.9
-##### Fixes
-- fixed error handling
-
-## V 0.2.8
+## Dev
 ##### Changes
 - setting ```devMode:true``` is actual
+- `includePlugins` proxy-flag changed to `isPage`
+
+##### Fixes
+- fixed error handling
 
 ## v 0.2.7
 ##### Changes

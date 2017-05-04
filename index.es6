@@ -103,6 +103,7 @@ module.exports = customSettings=>{
 			error = null,
 			lauched = 0,
 			exits = 0,
+			//indexing,
 			indexName = undefined;
 
 		//PLUGINS
@@ -120,6 +121,19 @@ module.exports = customSettings=>{
 
 		const startServer = msg=>{
 			console.log(msg);
+
+			console.log('indexing...');
+
+			//INDEXING FLAG
+			/*let i = 0;  // dots counter
+			indexing = setInterval(()=>{
+				process.stdout.clearLine();  // clear current text
+				process.stdout.cursorTo(0);  // move cursor to beginning of line
+				i = (i + 1) % 4;
+				let dots = new Array(i + 1).join(".");
+				process.stdout.write("indexing" + dots);  // write text
+			}, 200);*/
+
 			for (let i = 0; i < threads; i++) {
 				let pars = {
 					pluginsJS,
@@ -168,6 +182,7 @@ module.exports = customSettings=>{
 		medulla._handle = msg=>{
 			//UPDATE WATCHERS AFTER START WORKERS
 			if (msg.type === 'update_watchers') {
+				//clearInterval(indexing);
 				let fileIndex = JSON.parse(msg.fileIndex);
 
 				let keys = Object.keys(watchers);
@@ -176,7 +191,6 @@ module.exports = customSettings=>{
 						//REMOVE WATCHER
 						watchers[fid].close();
 						delete watchers[fid];
-
 						console.log(`index rem "${fid}"`);
 					}
 				}
@@ -242,13 +256,12 @@ module.exports = customSettings=>{
 				if (lauched === threads) {
 					lauched = 0;
 					if (onRestartEnd.length > 0) {
-						console.log('WRR LAUNCHED');
-
 						for (let h of onRestartEnd) h();
 						onRestartEnd.length = 0;
 					}
 
 					for (let h of handlersLaunch) h();
+					console.info('workers launched');
 				}
 
 			} else {
@@ -474,6 +487,7 @@ module.exports = customSettings=>{
 		for (let filepath of staticModules) installModule(filepath);
 
 		//SEND FILEINDEX TO MASTER (ONLY ONE WORKER)
+		if (settings.watch && process.env.mainWorker === '1') console.info('indexing...');
 		if (settings.watch && process.env.mainWorker === '1') process.send({
 			type:'update_watchers',
 			fileIndex: JSON.stringify(watchedFiles)
@@ -577,7 +591,7 @@ module.exports = customSettings=>{
 						let targetRequest = mod_http.request(options, targetResponse=>{
 
 							let modify = (
-									result.includePlugins &&
+									result.isPage &&
 									targetResponse.headers['content-type'] &&
 									targetResponse.headers['content-type'].substr(0,9) === 'text/html'
 								),
