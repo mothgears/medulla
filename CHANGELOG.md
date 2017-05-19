@@ -2,8 +2,11 @@
 
 ## Dev
 ##### Changes
-- setting ```devMode:true``` is actual
+- setting `devMode:true` is actual
 - `includePlugins` proxy-flag changed to `isPage`
+- `fileIndex` renamed to `watchedFiles`
+- setting `watchFiles` removed, now `type:'file'` will be watched by server anyway
+- added `publicAccess` - list of access rules to files
 
 ##### Fixes
 - fixed error handling
@@ -30,7 +33,7 @@
 
 ## v 0.2.2
 ##### Changes
-- setting ```devMode:true``` replaced with launch parameter `-dev`
+- setting `devMode:true` replaced with launch parameter `-dev`
 
 ##### Improvements
 - added console commands:  

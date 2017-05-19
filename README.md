@@ -42,10 +42,7 @@ Server port.
 Additional mime types in format {"ext":"mime"}.
 
 - `watch: true`  
-If set "true", the server watch for files from fileIndex and automatically restart workers or update the cache each time it changes.
-
-- `watchFiles: false`  
-If set "true", the server will watch also for files with "type:file".
+If set "true", the server watch for files from watchedFiles and automatically update the cache each time it changes.
 
 - `forcewatch: false`  
 Set true if "fs.watch" don't work correctly and server not reacting on file changes.
@@ -66,14 +63,29 @@ If set "true", the devPlugins will be included.
 Proxy cookie domain name.
 
 #### Main module
-Create the main module of your app (e.g. myApp.js) and add to it fileIndex (files must exist on server).  
-**(!)** *don't add modules here, required modules added automatically.*
+Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list
 ```es6
-module.exports.fileIndex = {
+module.exports.publicAccess = {
+    //access rules in format 'url:{params}'
+    
+    "~*?" : "public_html/~*?", //access to all files from "public_html" folder and subfolders
+    "*.png" : "images/*.png", //access to all png files directly from "images" folder
+};
+```
+- `~`  
+File dir/path
+- `*`  
+File name
+- `?`  
+File extension
+
+
+Also add `watchedFiles` list (files must exist on server), these files will be watched by server
+```es6
+module.exports.watchedFiles = {
     //indexed files in format 'url:{params}'
     
-    //Templates
-    "~*.png"            : {type:"file", src:"images/~*.png"}, //all png files from "images" folder and subfolders
+    //Templates for search
     "scripts/*.js"      : {type:"cached", src:"bin/*.js"}, //all js files directly from "bin" folder
     
     //Concrete files
@@ -82,6 +94,9 @@ module.exports.fileIndex = {
     "client-script.es6" : {type:"cached", src:"bin/client-script.es6"}
 };
 ```
+**(!)** *It's not filters or directories, it's are files, removing or adding this files on server (when medulla is launched) may throw error.*
+**(!)** *don't add modules to watchedFiles, required modules added automatically.*
+
 - `type:"file"`  
 Will read file from disc in every request.  
 - `type:"cached"`  

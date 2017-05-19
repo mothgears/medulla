@@ -16,7 +16,6 @@ module.exports = customSettings=>{
 		serverApp         : './app.js',
 		hosts             : {},
 		forcewatch        : false,
-		watchFiles        : false,
 		plugins           : {'./mod-ws.es6':{}},
 		watch             : true,
 		devMode           : process.argv.indexOf('-dev') >= 0,
@@ -351,6 +350,7 @@ module.exports = customSettings=>{
 		let handlerRequest = null,
 			watchedFiles   = {},
 			cache          = {},
+			fileAccess     = {},
 			files          = {};
 
 		//MESSAGE HANDLER
@@ -363,14 +363,14 @@ module.exports = customSettings=>{
 		});
 
 		const addToWatchedFiles = (fid, params) => {
-			if (settings.watchFiles || params.type !== 'file') watchedFiles[fid] = {
+			watchedFiles[fid] = {
 				module : false,
 				params : params,
 				mimeType : settings.mimeTypes[mod_path.extname(fid).slice(1)]
 			};
 
 			if      (params.type === 'file'  ) files[fid] = params.src || fid;
-			else if (params.type === 'cached') cache[fid] = {
+			else if (params.type === 'cached') cache[fid] = { //cached
 				content: fs.readFileSync(params.src || fid, 'utf8'),
 				srcPath: params.src || fid
 			};
@@ -402,12 +402,40 @@ module.exports = customSettings=>{
 
 			if (settings.mimeTypes) settings.mimeTypes = require(settings.mimeTypes);
 		}*/
-		if (mm.fileIndex) {
-			if (global.medulla.indexName) mm.fileIndex = mm.fileIndex[global.medulla.indexName];
 
-			let fileIndexFiles = Object.keys(mm.fileIndex);
+		if (mm.publicAccess) {
+			fileAccess = mm.publicAccess;
+		}
+
+		const accessToFile = url=>{
+			let ext = mod_path.extname(url);
+			let dir = mod_path.dirname(url);
+			let filename = mod_path.basename(url, ext);
+
+			let turls = Object.keys(fileAccess);
+
+			for (let turl of turls) {
+				let tpath = fileAccess[turl];
+				let cnt = null;
+				let rurl = turl.replace('~', dir+'/').replace('*', filename).replace('?', ext);
+				if (rurl === url) {
+					let rpath = process.cwd() + '/' + tpath.replace('~', dir+'/').replace('*', filename).replace('?', ext);
+					try { cnt = fs.readFileSync(rpath); } catch(err) {/*if (err.code === 'ENOENT') {}*/}
+					if (cnt) return cnt;
+				}
+			}
+
+			return null;
+		};
+
+		if (mm.watchedFiles) {
+			//if (global.medulla.indexName) mm.watchedFiles = mm.watchedFiles[global.medulla.indexName];
+
+			let fileIndexFiles = Object.keys(mm.watchedFiles);
 			for (let fid of fileIndexFiles) {
-				let params = mm.fileIndex[fid];
+				let params = mm.watchedFiles[fid];
+
+				params.type = params.type || 'cached';
 
 				if (fid.indexOf('*') >= 0) { //TEMPLATE PROCESSING
 					let pathTo = (params.src || fid).split('*');
@@ -548,23 +576,28 @@ module.exports = customSettings=>{
 			let path = request.url.slice(1);
 			let ext  = mod_path.extname(path).slice(1);
 			let mt   = ext?settings.mimeTypes[ext]:null;
+			let cnt  = null;
 
 			/*if (path === 'medulla-plugins.js') {
 				response.writeHeader(200, {"Content-Type": (mt?mt:"application/javascript")+"; charset=utf-8"});
 				response.write(process.env.pluginsJS);
 			} else*/
 
-			if (files[path]) {
+			if (cache[path]) {
+				let ext = mod_path.extname(cache[path].srcPath).slice(1);
+				let mt = (ext && settings.mimeTypes[ext]) ? settings.mimeTypes[ext] : mt;
+
+				if (!mt) nomt(ext);
+				response.writeHeader(200, {"Content-Type": (mt ? mt : "text/html") + "; charset=utf-8"});
+				response.write(cache[path].content);
+			} else if (files[path]) {
 				if (!mt) nomt(ext);
 				response.writeHeader(200, {"Content-Type": (mt?mt:"text/html")+"; charset=utf-8"});
 				response.write(fs.readFileSync(files[path]));
-			} else if (cache[path]) {
-				let ext = mod_path.extname(cache[path].srcPath).slice(1);
-				let mt  = (ext && settings.mimeTypes[ext])?settings.mimeTypes[ext]:mt;
-
+			} else if (cnt = accessToFile(path)) {
 				if (!mt) nomt(ext);
 				response.writeHeader(200, {"Content-Type": (mt?mt:"text/html")+"; charset=utf-8"});
-				response.write(cache[path].content);
+				response.write(cnt);
 			} else {
 				try {
 					let result = handlerRequest(request, response);
