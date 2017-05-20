@@ -12,7 +12,7 @@ module.exports = customSettings=>{
 	let settings = medulla.settings = {
 		port              : 3000,
 		wsPort            : 9000,
-		serverDir         : '../../',
+		serverDir         : process.cwd(),
 		serverApp         : './app.js',
 		hosts             : {},
 		forcewatch        : false,
@@ -21,8 +21,9 @@ module.exports = customSettings=>{
 		devMode           : process.argv.indexOf('-dev') >= 0,
 		proxyCookieDomain : 'localhost',
 		devPlugins        : {},
-		mimeTypes         : require('./mimeTypes.json')
 	};
+
+	let mimeTypes = require('./mimeTypes.json');
 
 	//ADD CUSTOM SETTINGS
 	if (customSettings) {
@@ -330,7 +331,7 @@ module.exports = customSettings=>{
 		//medulla.require
 		let modulesParams = {};
 		medulla.require = (mdl, clientSide = null)=>{
-			mdl = require.resolve(settings.serverDir + mdl);
+			mdl = require.resolve(mod_path.resolve(settings.serverDir, mdl));
 			modulesParams[mdl] = clientSide;
 			return require(mdl);
 		};
@@ -366,13 +367,17 @@ module.exports = customSettings=>{
 			watchedFiles[fid] = {
 				module : false,
 				params : params,
-				mimeType : settings.mimeTypes[mod_path.extname(fid).slice(1)]
+				mimeType : mimeTypes[mod_path.extname(fid).slice(1)]
 			};
 
-			if      (params.type === 'file'  ) files[fid] = params.src || fid;
-			else if (params.type === 'cached') cache[fid] = { //cached
+			if      (params.type === 'file'  ) files[fid] = {
+				srcPath: params.src || fid,
+				isPage : params.isPage
+			};
+			else if (params.type === 'cached') cache[fid] = {
 				content: fs.readFileSync(params.src || fid, 'utf8'),
-				srcPath: params.src || fid
+				srcPath: params.src || fid,
+				isPage : params.isPage
 			};
 		};
 
@@ -387,7 +392,7 @@ module.exports = customSettings=>{
 
 		try {
 			if (typeof settings.serverApp === 'string') {
-				mm = require(settings.serverDir + settings.serverApp)
+				mm = require(mod_path.resolve(settings.serverDir, settings.serverApp))
 			} else if (typeof settings.serverApp === 'function') {
 				settings.serverApp(mm);
 			}
@@ -403,6 +408,11 @@ module.exports = customSettings=>{
 			if (settings.mimeTypes) settings.mimeTypes = require(settings.mimeTypes);
 		}*/
 
+		if (mm.mimeTypes) {
+			let ks = Object.keys(mm.mimeTypes);
+			for (let k of ks) mimeTypes[k] = mm.mimeTypes[k];
+		}
+
 		if (mm.publicAccess) {
 			fileAccess = mm.publicAccess;
 		}
@@ -414,14 +424,14 @@ module.exports = customSettings=>{
 
 			let turls = Object.keys(fileAccess);
 
+			//console.log('URL['+url+']');
+
 			for (let turl of turls) {
 				let tpath = fileAccess[turl];
-				let cnt = null;
 				let rurl = turl.replace('~', dir+'/').replace('*', filename).replace('?', ext);
 				if (rurl === url) {
 					let rpath = process.cwd() + '/' + tpath.replace('~', dir+'/').replace('*', filename).replace('?', ext);
-					try { cnt = fs.readFileSync(rpath); } catch(err) {/*if (err.code === 'ENOENT') {}*/}
-					if (cnt) return cnt;
+					try { return fs.readFileSync(rpath); } catch(err) {if (err.code === 'ENOENT') {}}
 				}
 			}
 
@@ -496,10 +506,12 @@ module.exports = customSettings=>{
 			};
 
 			if (m.clientSide) {
-				if      (m.clientSide.type === 'file'    ) files[m.clientSide.url] = filepath;
+				if      (m.clientSide.type === 'file'    ) files[m.clientSide.url] = {
+					srcPath: filepath
+				};
 				else if (m.clientSide.type === 'cached'  ) cache[m.clientSide.url] = {
 					content: code,
-					srcPath: filepath
+					srcPath: filepath,
 				};
 			}
 
@@ -567,7 +579,10 @@ module.exports = customSettings=>{
 			});
 		};
 
-		const nomt = ext=>console.info(`Mime type for extension "${ext}" not found, extend mime types.`);
+		const nomt = ext=>{
+			console.info(`Mime type for extension "${ext}" not found, extend mime types.`);
+			return 'text/html';
+		};
 
 		//SERVER
 		mod_http.createServer((request, response)=>{
@@ -575,7 +590,7 @@ module.exports = customSettings=>{
 
 			let path = request.url.slice(1);
 			let ext  = mod_path.extname(path).slice(1);
-			let mt   = ext?settings.mimeTypes[ext]:null;
+			let mt   = (ext && mimeTypes[ext])?mimeTypes[ext]:null;
 			let cnt  = null;
 
 			/*if (path === 'medulla-plugins.js') {
@@ -584,19 +599,20 @@ module.exports = customSettings=>{
 			} else*/
 
 			if (cache[path]) {
-				let ext = mod_path.extname(cache[path].srcPath).slice(1);
-				let mt = (ext && settings.mimeTypes[ext]) ? settings.mimeTypes[ext] : mt;
-
-				if (!mt) nomt(ext);
-				response.writeHeader(200, {"Content-Type": (mt ? mt : "text/html") + "; charset=utf-8"});
+				ext = mod_path.extname(cache[path].srcPath).slice(1);
+				mt = (ext && mimeTypes[ext]) ? mimeTypes[ext] : mt;
+				if (!mt) mt = nomt(ext);
+				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.write(cache[path].content);
+				if (cache[path].isPage) response.write(`<script>${process.env.pluginsJS}</script>`);
 			} else if (files[path]) {
-				if (!mt) nomt(ext);
-				response.writeHeader(200, {"Content-Type": (mt?mt:"text/html")+"; charset=utf-8"});
-				response.write(fs.readFileSync(files[path]));
+				if (!mt) mt = nomt(ext);
+				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
+				response.write(fs.readFileSync(files[path].srcPath));
+				if (files[path].isPage) response.write(`<script>${process.env.pluginsJS}</script>`);
 			} else if (cnt = accessToFile(path)) {
-				if (!mt) nomt(ext);
-				response.writeHeader(200, {"Content-Type": (mt?mt:"text/html")+"; charset=utf-8"});
+				if (!mt) mt = nomt(ext);
+				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.write(cnt);
 			} else {
 				try {

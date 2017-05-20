@@ -1,4 +1,5 @@
 .idea
 .gitignore
 .npmignore
+examples
 npm-debug.log

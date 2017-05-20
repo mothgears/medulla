@@ -1,15 +1,21 @@
 # Changelog
 
-## Dev
+## v 0.3.0
 ##### Changes
+- added `isPage` prop for watched files index
 - setting `devMode:true` is actual
 - `includePlugins` proxy-flag changed to `isPage`
 - `fileIndex` renamed to `watchedFiles`
-- setting `watchFiles` removed, now `type:'file'` will be watched by server anyway
 - added `publicAccess` - list of access rules to files
+- setting `watchFiles` removed, now `type:'file'` will be watched by server anyway
+- `serverDir` default value now is `process.cwd()`
+- extra `mimeTypes` removed from settings, and added to main module
 
 ##### Fixes
 - fixed error handling
+- fixed incorrect url combining, `serverDir` and `serverApp` now will be combining using path.resolve
+- fixed incorrect medulla.require path combining
+- fixed no-mimeType error
 
 ## v 0.2.7
 ##### Changes

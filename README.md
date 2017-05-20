@@ -9,7 +9,8 @@ and update cache when changed scripts (files with [prop](#main-module) `type:cac
 - Can work as a proxy server and forwarding requests to the specified domain.
 
 **(!)** *module in development, this is unstable version with incomplete functional.*  
-Feedback:
+
+If you found bugs or you have suggestions for improvement, please feel free to submit them to e-mail:
 [mailbox@mothgears.com](mailto:mailbox@mothgears.com)
 
 ## Installation
@@ -32,14 +33,11 @@ require('medulla')({
 - `serverApp: "./app.js"`  
 Path to your app main module.
 
-- `serverDir: "../../"`  
+- `serverDir: process.cwd()`  
 Path to app dir.
 
 - `port: 3000`  
 Server port.
-
-- `mimeTypes: {}`   
-Additional mime types in format {"ext":"mime"}.
 
 - `watch: true`  
 If set "true", the server watch for files from watchedFiles and automatically update the cache each time it changes.
@@ -69,7 +67,7 @@ module.exports.publicAccess = {
     //access rules in format 'url:{params}'
     
     "~*?" : "public_html/~*?", //access to all files from "public_html" folder and subfolders
-    "*.png" : "images/*.png", //access to all png files directly from "images" folder
+    "pic/*.png" : "images/*.png", //access to all png files directly from "images" folder
 };
 ```
 - `~`  
@@ -101,6 +99,8 @@ module.exports.watchedFiles = {
 Will read file from disc in every request.  
 - `type:"cached"`  
 Add file content to variable (for each worker).
+- `isPage:false`  
+Included medulla js code to page (use for html-pages).
   
 Default path to file is url, but you may specify it directly use `src` param.  
 
@@ -108,6 +108,13 @@ To share included modules also as js script, use `medulla.require` function inst
 ```es6
 const myModule1 = medulla.require('./myModule1.js', {url:'client-module1.js', type:'cached'});
 const myModule2 = medulla.require('./myModule2.js', {url:'client-module2.js', type:'file'});
+```
+
+Add extra mime types in format {"ext":"mime"}.
+```es6
+module.exports.mimeTypes : {
+    "es6" : "application/javascript"
+},
 ```
 
 Describe the worker function
@@ -122,7 +129,7 @@ module.exports.onRequest = (request, response)=>{
     //1   - for including medulla-plugins code in responce body (use with page html)
     //404 - for "404 Not Found"
     //0   - pure responce, use in other cases (json or other api data)
-    //{target:"mysite.net", includePlugins:(request.url === '/')} - for proxying this request
+    //{target:"mysite.net", isPage:(request.url === '/')} - for proxying this request
 };
 ```
 
