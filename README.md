@@ -92,7 +92,7 @@ module.exports.watchedFiles = {
     "client-script.es6" : {type:"cached", src:"bin/client-script.es6"}
 };
 ```
-**(!)** *It's not filters or directories, it's are files, removing or adding this files on server (when medulla is launched) may throw error.*
+**(!)** *Unlike a `publicAccess` list, this list is not filters or directories, just files, therefore removing or adding this files on server (when medulla is launched) may throw error.*  
 **(!)** *don't add modules to watchedFiles, required modules added automatically.*
 
 - `type:"file"`  
@@ -143,7 +143,7 @@ or for start the server with dev plugins, launch it with parameter:
 ```
 node server.js -dev
 ```
-and open the site in browser (e.g. localhost:3001)
+and open the site in browser (e.g. localhost:3000)
 
 #### Console commands
   - `version` - show current module version  

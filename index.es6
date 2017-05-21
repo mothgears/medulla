@@ -328,10 +328,35 @@ module.exports = customSettings=>{
 		let workerPlugins = JSON.parse(process.env.workerPlugins);
 		for (let plugin of workerPlugins) require(plugin);
 
+		let getCallerFile = ()=>{
+			try {
+				let err = new Error();
+				let callerfile;
+				let currentfile;
+
+				let origin = Error.prepareStackTrace;
+				Error.prepareStackTrace = (err, stack)=>stack;
+				currentfile = err.stack.shift().getFileName();
+
+				while (err.stack.length) {
+					callerfile = err.stack.shift().getFileName();
+
+					if (currentfile !== callerfile) {
+						Error.prepareStackTrace = origin;
+						return callerfile;
+					}
+				}
+
+				Error.prepareStackTrace = origin;
+			} catch (err) {}
+			return undefined;
+		};
+
 		//medulla.require
 		let modulesParams = {};
 		medulla.require = (mdl, clientSide = null)=>{
-			mdl = require.resolve(mod_path.resolve(settings.serverDir, mdl));
+			let dir = mod_path.dirname(getCallerFile());
+			mdl = require.resolve(mod_path.resolve(dir, mdl));
 			modulesParams[mdl] = clientSide;
 			return require(mdl);
 		};

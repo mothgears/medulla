@@ -1,4 +1,4 @@
-const ms = medulla.require('./multiscript.es6', {url:'ms.js', type:'cached'});
+const ms = medulla.require('./scripts/multiscript.es6', {url:'ms.js', type:'cached'});
 
 module.exports = {
 	publicAccess: {

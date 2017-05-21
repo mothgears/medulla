@@ -1,5 +1,9 @@
 # Changelog
 
+## v 0.3.1
+##### Fixes
+- corrected path determination in `medulla.require()`
+
 ## v 0.3.0
 ##### Changes
 - added `isPage` prop for watched files index
