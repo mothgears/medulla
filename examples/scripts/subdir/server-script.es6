@@ -1,1 +1,1 @@
-console.log('server-script');
+module.exports = ()=>console.log('server-script');

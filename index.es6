@@ -1,9 +1,17 @@
 //MEDULLA NODE SERVER
 module.exports = customSettings=>{
-	const cluster = require('cluster');
-	const fs      = require('fs');
-	const os      = require('os');
-	const threads = os.cpus().length;
+	//LIBS
+	const
+		cluster  = require('cluster'),
+		fs       = require('fs'),
+		os       = require('os'),
+		threads  = os.cpus().length,
+		mod_path = require('path');
+
+	//TOOLS
+	const
+		_00  = n=>n<10  ? ('0'+n)      : n,
+		_000 = n=>n<100 ? ('0'+_00(n)) : n;
 
 	//GLOBAL SERVER INTERFACE
 	global.medulla = {};
@@ -21,7 +29,54 @@ module.exports = customSettings=>{
 		devMode           : process.argv.indexOf('-dev') >= 0,
 		proxyCookieDomain : 'localhost',
 		devPlugins        : {},
+		logging           : {enabled:true, dir:process.cwd()}
 	};
+
+	//ASYNC LOGGING
+	if (settings.logging && settings.logging.enabled) {
+		const
+			consoleStream = {
+				trace:[],
+				error:[],
+			},
+			writeLog = type=>{
+				if (consoleStream[type].length > 0) {
+					let str = consoleStream[type].shift(),
+						now = new Date(),
+						ms = now.getUTCMilliseconds(),
+						s = now.getUTCSeconds(),
+						m = now.getUTCMinutes(),
+						h = now.getUTCHours(),
+						D = now.getUTCDate(),
+						M = now.getUTCMonth(),
+						Y = now.getUTCFullYear();
+					str = `${_00(h)}:${_00(m)}:${_00(s)}.${_000(ms)} ${str}`;
+					now = `${Y}-${_00(M)}-${_00(D)}`;
+
+					fs.appendFile(mod_path.resolve(settings.logging.dir, type+'-'+now+'-'+'.log'), str, err=>{
+						if (!err) writeLog(type);
+					});
+				}
+			},
+
+			console_write = (type, ...args)=>{
+				let str = args.join('');
+				consoleStream[type].push(str+'\n');
+				writeLog(type);
+			},
+
+			log = console.log,
+			err = console.error;
+
+		console.log = (...args)=>{
+			console_write('trace', ...args);
+			log(...args);
+		};
+		console.error = (...args)=>{
+			console_write('error', ...args);
+			err(...args);
+		};
+	}
 
 	let mimeTypes = require('./mimeTypes.json');
 
@@ -122,7 +177,7 @@ module.exports = customSettings=>{
 		const startServer = msg=>{
 			console.log(msg);
 
-			console.log('indexing...');
+			console.info('indexing...');
 
 			//INDEXING FLAG
 			/*let i = 0;  // dots counter
@@ -191,14 +246,14 @@ module.exports = customSettings=>{
 						//REMOVE WATCHER
 						watchers[fid].close();
 						delete watchers[fid];
-						console.log(`index rem "${fid}"`);
+						console.info(`index rem "${fid}"`);
 					}
 				}
 
 				keys = Object.keys(fileIndex);
 				for (let fid of keys) {
 					if (!watchers[fid]) {
-						console.log(`index add "${fid}"`);
+						console.info(`index add "${fid}"`);
 
 						//ADD WATCHER
 						let fileparam = fileIndex[fid];
@@ -319,7 +374,6 @@ module.exports = customSettings=>{
 	} else {
 		//LIBS
 		const getSubmodules = require('./mod-requires.es6');
-		const mod_path = require('path');
 		const mod_http = require('http');
 		const mod_url  = require('url');
 		const mod_zlib = require('zlib');
@@ -448,8 +502,6 @@ module.exports = customSettings=>{
 			let filename = mod_path.basename(url, ext);
 
 			let turls = Object.keys(fileAccess);
-
-			//console.log('URL['+url+']');
 
 			for (let turl of turls) {
 				let tpath = fileAccess[turl];
@@ -643,7 +695,6 @@ module.exports = customSettings=>{
 				try {
 					let result = handlerRequest(request, response);
 					if (result === 404) {
-						console.log('404');
 						response.writeHeader(404);
 						response.write('404 Not Found');
 					}
@@ -695,6 +746,8 @@ module.exports = customSettings=>{
 						request.on('end', ()=>targetRequest.end());
 					}
 				} catch(e) {
+					errorHandle(e, 'MODULE ERROR', 'none'); //Nothing
+
 					response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
 					let stack = e.stack.replace(/at/g,'<br>@ at');
 					response.write(`

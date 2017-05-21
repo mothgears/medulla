@@ -60,6 +60,9 @@ If set "true", the devPlugins will be included.
 - `proxyCookieDomain: "localhost"`  
 Proxy cookie domain name.
 
+- `logging: {enabled:true, dir:process.cwd()}`  
+Async logging to file for "console.log()" and "console.error()" methods.
+
 #### Main module
 Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list
 ```es6

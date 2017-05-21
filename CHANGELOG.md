@@ -1,19 +1,25 @@
 # Changelog
 
+## v 0.3.2
+##### Improvements
+- added async logging to file
+
 ## v 0.3.1
 ##### Fixes
 - corrected path determination in `medulla.require()`
 
 ## v 0.3.0
 ##### Changes
-- added `isPage` prop for watched files index
 - setting `devMode:true` is actual
 - `includePlugins` proxy-flag changed to `isPage`
 - `fileIndex` renamed to `watchedFiles`
-- added `publicAccess` - list of access rules to files
 - setting `watchFiles` removed, now `type:'file'` will be watched by server anyway
 - `serverDir` default value now is `process.cwd()`
 - extra `mimeTypes` removed from settings, and added to main module
+
+##### Improvements
+- added `isPage` prop for watched files index
+- added `publicAccess` - list of access rules to files
 
 ##### Fixes
 - fixed error handling
