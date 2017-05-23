@@ -23,6 +23,7 @@ module.exports = customSettings=>{
 		serverDir         : process.cwd(),
 		serverApp         : './app.js',
 		hosts             : {},
+		platforms         : {},
 		forcewatch        : false,
 		plugins           : {'./mod-ws.es6':{}},
 		watch             : true,
@@ -48,12 +49,12 @@ module.exports = customSettings=>{
 						m = now.getUTCMinutes(),
 						h = now.getUTCHours(),
 						D = now.getUTCDate(),
-						M = now.getUTCMonth(),
+						M = now.getUTCMonth()+1,
 						Y = now.getUTCFullYear();
 					str = `${_00(h)}:${_00(m)}:${_00(s)}.${_000(ms)} ${str}`;
 					now = `${Y}-${_00(M)}-${_00(D)}`;
 
-					fs.appendFile(mod_path.resolve(settings.logging.dir, type+'-'+now+'-'+'.log'), str, err=>{
+					fs.appendFile(mod_path.resolve(settings.logging.dir, type+'-'+now+'.log'), str, err=>{
 						if (!err) writeLog(type);
 					});
 				}
@@ -93,16 +94,24 @@ module.exports = customSettings=>{
 		}
 	}
 
+	let platformSettings = settings.platforms[process.platform];
+	if (platformSettings) {
+		let keys = Object.keys(platformSettings);
+		for (let key of keys) settings[key] = platformSettings[key];
+	}
+	delete settings.platforms;
+
 	let hostSettings = settings.hosts[os.hostname()];
 	if (hostSettings) {
 		let keys = Object.keys(hostSettings);
 		for (let key of keys) settings[key] = hostSettings[key];
 	}
+	delete settings.hosts;
+
 	if (settings.devMode) {
 		let keys = Object.keys(settings.devPlugins);
 		for (let key of keys) settings.plugins[key] = settings.devPlugins[key];
 	}
-	delete settings.hosts;
 	delete settings.devPlugins;
 
 	let pluginIndex = {}; //PLUGINS ORDER

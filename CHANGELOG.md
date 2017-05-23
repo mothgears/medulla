@@ -1,5 +1,12 @@
 # Changelog
 
+## v 0.3.3
+##### Improvements
+- added `platforms` settings
+
+##### Fixes
+- the numbering of months in the names of the logfiles has changed, now from 1 to 12
+
 ## v 0.3.2
 ##### Improvements
 - added async logging to file

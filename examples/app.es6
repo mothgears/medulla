@@ -7,10 +7,10 @@ module.exports = {
 	},
 
 	watchedFiles: {
-		"~*.js"             : {type:"cached", src:"scripts/~*.js", reload:'force'}, //type:"cached",
-		"client-script.es6" : {type:"cached", src:"scripts/client-script.es6"},
-		"styles/*.css"      : {type:"cached", reload:'hot'},
-		"realpage"          : {type:"cached", src:"realpage.html", isPage:true},
+		"~*.js"             : {src:"scripts/~*.js", reload:'force'}, //type:"cached",
+		"client-script.es6" : {src:"scripts/client-script.es6"},
+		"styles/*.css"      : {reload:'hot'},
+		"realpage"          : {src:"realpage.html", isPage:true},
 		'readme.txt'        : {type:"file"},
 	},
 
@@ -32,7 +32,7 @@ module.exports = {
 				</head>
 				<body><a href="readme.txt">-readme-</a><br>
 				<a href="realpage">-html-</a><br><br>
-				<a href="rtest/rtest2/temm.zip">-file-</a><br><br>
+				<a href="rtest/rtest2/temm.zip" download>-file-</a><br><br>
 				<img src="pic/sample.png"><br><br>
 				
 				This file is disallow:<br>

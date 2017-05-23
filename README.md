@@ -22,10 +22,14 @@ If you found bugs or you have suggestions for improvement, please feel free to s
 
 ## Usage
 #### Entry point and config
-Create an entry point (e.g. server.js) and require medulla with settings:
+Create an entry point (e.g. server.js) and require medulla with some settings (for example):
 ```es6
 require('medulla')({
     serverApp : "./myApp.js"
+    platforms :{
+        "win32" : {"forcewatch":false},
+        "linux" : {"forcewatch":true}
+    }
 });
 ```
 
@@ -45,8 +49,11 @@ If set "true", the server watch for files from watchedFiles and automatically up
 - `forcewatch: false`  
 Set true if "fs.watch" don't work correctly and server not reacting on file changes.
 
+- `platforms: {}`  
+Individual configs for specific platforms (process.platform) in format "platform_name" : {"setting":"value"}.
+
 - `hosts: {}`  
-Individual configs for specific hosts in format "hostname" : {"setting":"value"}.
+Individual configs for specific hosts (os.hostname()) in format "hostname" : {"setting":"value"}.
 
 - `pluging: {}`  
 Server plugins in format "pluginModuleName" : "{plugin-settings}".
