@@ -1,5 +1,17 @@
 # Changelog
 
+## v 0.3.4
+##### Changes
+- `logging.enabled` replaced with `logging.level`
+
+##### Improvements
+- added `logging.separatedTypes` setting
+- `appModel: export.onRequest` now is optional
+
+##### Fixes
+- fixed logging settings
+- platforms/hosts settings merging now is recursive
+
 ## v 0.3.3
 ##### Improvements
 - added `platforms` settings

@@ -67,7 +67,7 @@ If set "true", the devPlugins will be included.
 - `proxyCookieDomain: "localhost"`  
 Proxy cookie domain name.
 
-- `logging: {enabled:true, dir:process.cwd()}`  
+- `logging: {level:'trace', dir:process.cwd(), separatedTypes:false}`  
 Async logging to file for "console.log()" and "console.error()" methods.
 
 #### Main module

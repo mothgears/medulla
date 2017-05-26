@@ -30,19 +30,49 @@ module.exports = customSettings=>{
 		devMode           : process.argv.indexOf('-dev') >= 0,
 		proxyCookieDomain : 'localhost',
 		devPlugins        : {},
-		logging           : {enabled:true, dir:process.cwd()}
+		logging           : {
+			level: 'trace',
+			separatedTypes: false,
+			dir: process.cwd()
+		}
 	};
 
+	let mimeTypes = require('./mimeTypes.json');
+
+	const mergeSettings = mergedSettings=>{
+		let keys = Object.keys(mergedSettings);
+		for (let key of keys) {
+			let s = settings[key];
+			if (typeof s === 'object') {
+				let ks = Object.keys(mergedSettings[key]);
+				for (let k of ks) settings[key][k] = mergedSettings[key][k];
+			}
+			else settings[key] = mergedSettings[key];
+		}
+	};
+
+	//ADD CUSTOM SETTINGS
+	mergeSettings(customSettings);
+
+	let platformSettings = settings.platforms[process.platform];
+	if (platformSettings) mergeSettings(platformSettings);
+	delete settings.platforms;
+
+	let hostSettings = settings.hosts[os.hostname()];
+	if (hostSettings) mergeSettings(hostSettings);
+	delete settings.hosts;
+
 	//ASYNC LOGGING
-	if (settings.logging && settings.logging.enabled) {
+	if (settings.logging && settings.logging.level) {
+		let maxLevel = 0;
+		if      (settings.logging.level === 'trace') maxLevel = 2;
+		else if (settings.logging.level === 'error') maxLevel = 1;
+
 		const
-			consoleStream = {
-				trace:[],
-				error:[],
-			},
-			writeLog = type=>{
-				if (consoleStream[type].length > 0) {
-					let str = consoleStream[type].shift(),
+			consoleStream = [],
+			writeLog = ()=>{
+				if (consoleStream.length > 0) {
+					let rec = consoleStream.shift(),
 						now = new Date(),
 						ms = now.getUTCMilliseconds(),
 						s = now.getUTCSeconds(),
@@ -51,62 +81,36 @@ module.exports = customSettings=>{
 						D = now.getUTCDate(),
 						M = now.getUTCMonth()+1,
 						Y = now.getUTCFullYear();
-					str = `${_00(h)}:${_00(m)}:${_00(s)}.${_000(ms)} ${str}`;
+					rec.value = `${_00(h)}:${_00(m)}:${_00(s)}.${_000(ms)} ${rec.value}`;
 					now = `${Y}-${_00(M)}-${_00(D)}`;
 
-					fs.appendFile(mod_path.resolve(settings.logging.dir, type+'-'+now+'.log'), str, err=>{
-						if (!err) writeLog(type);
+					if (settings.logging.separatedTypes) rec.level = rec.level === 1 ? 'error-' : 'trace-';
+					else rec.level = '';
+
+					fs.appendFile(mod_path.resolve(settings.logging.dir, rec.level+now+'.log'), rec.value, err=>{
+						if (!err) writeLog();
 					});
 				}
 			},
 
-			console_write = (type, ...args)=>{
+			console_write = (level, ...args)=>{
 				let str = args.join('');
-				consoleStream[type].push(str+'\n');
-				writeLog(type);
+				consoleStream.push({value:str+'\n', level});
+				writeLog();
 			},
 
 			log = console.log,
 			err = console.error;
 
 		console.log = (...args)=>{
-			console_write('trace', ...args);
+			if (maxLevel >= 2) console_write(2, ...args);
 			log(...args);
 		};
 		console.error = (...args)=>{
-			console_write('error', ...args);
+			if (maxLevel >= 1) console_write(1, ...args);
 			err(...args);
 		};
 	}
-
-	let mimeTypes = require('./mimeTypes.json');
-
-	//ADD CUSTOM SETTINGS
-	if (customSettings) {
-		let keys = Object.keys(customSettings);
-		for (let key of keys) {
-			let s = settings[key];
-			if (typeof s === 'object') {
-				let ks = Object.keys(customSettings[key]);
-				for (let k of ks) settings[key][k] = customSettings[key][k];
-			}
-			else settings[key] = customSettings[key];
-		}
-	}
-
-	let platformSettings = settings.platforms[process.platform];
-	if (platformSettings) {
-		let keys = Object.keys(platformSettings);
-		for (let key of keys) settings[key] = platformSettings[key];
-	}
-	delete settings.platforms;
-
-	let hostSettings = settings.hosts[os.hostname()];
-	if (hostSettings) {
-		let keys = Object.keys(hostSettings);
-		for (let key of keys) settings[key] = hostSettings[key];
-	}
-	delete settings.hosts;
 
 	if (settings.devMode) {
 		let keys = Object.keys(settings.devPlugins);
@@ -700,7 +704,7 @@ module.exports = customSettings=>{
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.write(cnt);
-			} else {
+			} else if (handlerRequest) {
 				try {
 					let result = handlerRequest(request, response);
 					if (result === 404) {
