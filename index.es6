@@ -537,31 +537,42 @@ module.exports = customSettings=>{
 
 				params.type = params.type || 'cached';
 
-				if (fid.indexOf('*') >= 0) { //TEMPLATE PROCESSING
-					let pathTo = (params.src || fid).split('*');
-					let dir = pathTo[0];
-					let ext = pathTo[1];
-					let recursive = dir.endsWith('~');
-					if (recursive) dir = dir.slice(0, -1);
-					if (!dir) dir = './'; //currentDir
+				if (fid.search(/[*?~]/g) >= 0) { //TEMPLATE PROCESSING
+					let pathTo = (params.src || fid);
+
+					let ext = null;
+					if (pathTo.endsWith('?')) pathTo = pathTo.slice(0, -1);
+					else ext = mod_path.extname(pathTo);
+					let fln = mod_path.basename(pathTo, ext?ext:undefined);
+					let dir = mod_path.dirname(pathTo);
+					let recursive = fln.startsWith('~');
+					if (recursive) {
+						fln = fln.slice(1);
+					}
+					if (fln.indexOf('*') >= 0) fln = null;
 
 					const processDir = (dir, sdir='')=>{
 						let files = fs.readdirSync(dir);
 
 						//FOR EACH FILE
 						files.forEach(filename => {
-							let path = dir+filename;
+							let path = mod_path.resolve(dir, filename);
 							let stat = fs.statSync(path);
 							if (stat && stat.isDirectory()) {
 								if (recursive) processDir(path+'/', sdir+filename+'/');
 							}
 
-							else if (stat && stat.isFile() && mod_path.extname(filename) === ext) {
-								let name = mod_path.basename(filename, ext);
+							else if (
+								stat && stat.isFile()
+								&& (!ext || ext === mod_path.extname(filename))
+								&& (!fln || fln === mod_path.basename(pathTo, ext?ext:undefined))
+							) {
+								let _ext = mod_path.extname(filename);
+								let _fln = mod_path.basename(filename, _ext);
 
 								let fileParams = Object.assign({}, params);
-								fileParams.src = dir+filename;
-								let fileId = fid.replace('*', name);
+								fileParams.src = mod_path.resolve(dir, _fln+_ext);
+								let fileId = fid.replace('*', _fln).replace('?', _ext);
 								if (recursive) fileId = fileId.replace('~', sdir);
 
 								addToWatchedFiles(fileId, fileParams);

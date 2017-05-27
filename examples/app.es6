@@ -3,15 +3,15 @@ const ms = medulla.require('./scripts/multiscript.es6', {url:'ms.js', type:'cach
 module.exports = {
 	publicAccess: {
 		'~*?'       : 'public/~*?',  //all files from directory
-		'pic/*.png' : 'images/*.png' //add .png files directly from directory
+		'pic/*.png' : 'images/*.png',//,//add .png files directly from directory
+		'readme.txt': 'readme.txt'   //concrete file
 	},
 
 	watchedFiles: {
 		"~*.js"             : {src:"scripts/~*.js", reload:'force'}, //type:"cached",
 		"client-script.es6" : {src:"scripts/client-script.es6"},
 		"styles/*.css"      : {reload:'hot'},
-		"realpage"          : {src:"realpage.html", isPage:true},
-		'readme.txt'        : {type:"file"},
+		"realpage"          : {src:"realpage.html", isPage:true}
 	},
 
 	mimeTypes : { //extend base mime Types

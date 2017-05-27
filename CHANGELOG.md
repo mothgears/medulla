@@ -1,5 +1,12 @@
 # Changelog
 
+## v 0.3.5
+##### Improvements
+- to `watchedFiles` added variable ext (`?`)
+
+##### Fixes
+- templates in `watchedFiles` resolved more correctly
+
 ## v 0.3.4
 ##### Changes
 - `logging.enabled` replaced with `logging.level`

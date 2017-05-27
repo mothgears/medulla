@@ -14,10 +14,10 @@ If you found bugs or you have suggestions for improvement, please feel free to s
 [mailbox@mothgears.com](mailto:mailbox@mothgears.com)
 
 ## Installation
-[npm](https://www.npmjs.com/package/medulla)  
+As [npm](https://www.npmjs.com/package/medulla) package  
 `npm i -S medulla`
   
-[git](https://github.com/mothgears/medulla.git)  
+As [git](https://github.com/mothgears/medulla.git) repository  
 `git clone https://github.com/mothgears/medulla.git`
 
 ## Usage
