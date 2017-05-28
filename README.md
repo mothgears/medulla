@@ -160,7 +160,8 @@ and open the site in browser (e.g. localhost:3000)
   - `stop` - shutdown server
 
 ## Plugins
-Dev plugin for hot reload page, scripts and styles - in development.
+- [medulla-hotcode](https://www.npmjs.com/package/medulla-hotcode)  
+Plugin for hot reload pages, scripts and styles.
 
 ## License
 MIT

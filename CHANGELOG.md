@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.3.6
+##### Improvements
+- added reference to `medulla-hotcode` plugin
+
 ## v 0.3.5
 ##### Improvements
 - to `watchedFiles` added variable ext (`?`)
