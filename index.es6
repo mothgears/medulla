@@ -64,11 +64,13 @@ module.exports = customSettings=>{
 
 	//ASYNC LOGGING
 	if (settings.logging && settings.logging.level) {
-		let maxLevel = 0;
-		if      (settings.logging.level === 'trace') maxLevel = 2;
-		else if (settings.logging.level === 'error') maxLevel = 1;
+		const levels = ['','error','warning','trace'];
+
+		let maxLevel = levels.indexOf(settings.logging.level);
+		if (maxLevel <= 0) maxLevel = settings.logging.level;
 
 		const
+			f = ['', console.error, console.warn, console.log],
 			consoleStream = [],
 			writeLog = ()=>{
 				if (consoleStream.length > 0) {
@@ -84,32 +86,31 @@ module.exports = customSettings=>{
 					rec.value = `${_00(h)}:${_00(m)}:${_00(s)}.${_000(ms)} ${rec.value}`;
 					now = `${Y}-${_00(M)}-${_00(D)}`;
 
-					if (settings.logging.separatedTypes) rec.level = rec.level === 1 ? 'error-' : 'trace-';
-					else rec.level = '';
+					let levelLabel = levels[rec.level],
+						sls = settings.logging.separatedTypes;
 
-					fs.appendFile(mod_path.resolve(settings.logging.dir, rec.level+now+'.log'), rec.value, err=>{
-						if (!err) writeLog();
-					});
+					fs.appendFile(
+						mod_path.resolve(settings.logging.dir, (sls?(levelLabel+'s-'):'')+now+'.log'),
+						rec.value, err=>{ if (!err) writeLog(); }
+					);
 				}
 			},
 
 			console_write = (level, ...args)=>{
-				let str = args.join('');
-				consoleStream.push({value:str+'\n', level});
-				writeLog();
-			},
+				const label = `[${levels[level].toUpperCase()}]`;
 
-			log = console.log,
-			err = console.error;
+				if (maxLevel >= level) {
+					let str = label+' '+args.join('');
+					consoleStream.push({value:str+'\n', level});
+					writeLog();
+				}
 
-		console.log = (...args)=>{
-			if (maxLevel >= 2) console_write(2, ...args);
-			log(...args);
-		};
-		console.error = (...args)=>{
-			if (maxLevel >= 1) console_write(1, ...args);
-			err(...args);
-		};
+				f[level](label, ...args);
+			};
+
+		console.log   = (...args)=>console_write(3, ...args);
+		console.warn  = (...args)=>console_write(2, ...args);
+		console.error = (...args)=>console_write(1, ...args);
 	}
 
 	if (settings.devMode) {
@@ -719,8 +720,9 @@ module.exports = customSettings=>{
 				try {
 					let result = handlerRequest(request, response);
 					if (result === 404) {
-						response.writeHeader(404);
+						response.writeHeader(404, {"Content-Type": "text/html; charset=utf-8"});
 						response.write('404 Not Found');
+						response.write(`<script>${process.env.pluginsJS}</script>`);
 					}
 					else if (result === 1) response.write(`<script>${process.env.pluginsJS}</script>`);
 					else if (typeof result === 'object') {
@@ -782,6 +784,10 @@ module.exports = customSettings=>{
 						<body>SERVER ERROR<br><br>${stack}</body>
 					`);
 				}
+			} else {
+				response.writeHeader(404, {"Content-Type": "text/html; charset=utf-8"});
+				response.write('404 Not Found');
+				response.write(`<script>${process.env.pluginsJS}</script>`);
 			}
 			if (!wait) response.end();
 		}).listen(settings.port);

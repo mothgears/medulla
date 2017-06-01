@@ -1,5 +1,18 @@
 # Changelog
 
+## V 0.3.7
+##### Changes
+- log files format is updated: `traces-YEAR-MM-DD.log`
+
+##### Improvements
+- new `logging.level: 'warning'`
+- added logging for `console.warn()` method
+- labels for log records and console output (e.g. `[ERROR]*`)
+
+##### Fixes
+- page 404 is has been corrected
+- module without `exports.onRequest` is now handled correctly
+
 ## V 0.3.6
 ##### Improvements
 - added reference to `medulla-hotcode` plugin
