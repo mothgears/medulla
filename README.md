@@ -68,7 +68,13 @@ If set "true", the devPlugins will be included.
 Proxy cookie domain name.
 
 - `logging: {level:'trace', dir:process.cwd(), separatedTypes:false}`  
-Async logging to file for "console.log()", "console.warn()" and "console.error()" methods.
+Async logging to file for "console.log()", "console.warn()" and "console.error()" methods.  
+  - `level`  
+  is min level for logging, can be "trace", "warning" or "error".
+  - `dir`  
+  directory for .log files.
+  - `separatedTypes`  
+  split log into several files by level.
 
 #### Main module
 Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list
