@@ -7,7 +7,8 @@ const removeComments = (str)=>{
 			primatives[primIndex] = match;
 			return (uid + '') + primIndex++;
 		})
-		.replace(/([^\/])(\/(?!\*|\/)(\\\/|.)+?\/[gim]{0,3})/g, (match, $1, $2)=>{
+		//(/([^\/])(\/(?!\*|\/)(\\\/|.)+?\/[gim]{0,3})/g)
+		.replace(/([^\/])(\/(?![*\/])(\\\/|.)+?\/[gim]{0,3})/g, (match, $1, $2)=>{
 			primatives[primIndex] = $2;
 			return $1 + (uid + '') + primIndex++;
 		})
@@ -25,7 +26,7 @@ module.exports = (mcode)=>{
 	mcode.shift();
 	for (let r of mcode) {
 		r = r.split(')')[0];
-		if (r && r[0] == '"' || r[0] == "'") {
+		if (r && r[0] === '"' || r[0] === "'") {
 			r = r.replace(/["']/g, "");
 			if (r) {
 				try {

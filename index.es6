@@ -393,9 +393,15 @@ module.exports = customSettings=>{
 		const mod_zlib = require('zlib');
 
 		//PLUGINS
-		let workerPlugins = JSON.parse(process.env.workerPlugins);
-		for (let plugin of workerPlugins) require(plugin);
+		let workerPlugins     = JSON.parse(process.env.workerPlugins),
+			cacheModificators = [];
 
+		for (let plugin of workerPlugins) {
+			let p = require(plugin);
+			if (p.medullaPlugin.cacheModificator) cacheModificators.push(p.medullaPlugin.cacheModificator);
+		}
+
+		//TOOLS
 		let getCallerFile = ()=>{
 			try {
 				let err = new Error();
@@ -449,29 +455,40 @@ module.exports = customSettings=>{
 
 		//MESSAGE HANDLER
 		process.on('message', function(msg) {
-			if      (msg.type === 'updateCache') cache[(msg.url || msg.path)] = {
-				content: fs.readFileSync(msg.path, 'utf8'),
-				srcPath: msg.path
-			};
+			if      (msg.type === 'updateCache') {
+				let content = fs.readFileSync(msg.path, 'utf8');
+				for (let cm of cacheModificators) content = cm(content);
+				cache[(msg.url || msg.path)] = {
+					content: content,
+					srcPath: msg.path
+				};
+			}
 			else if (msg.type === 'end'        ) process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
 		});
 
-		const addToWatchedFiles = (fid, params) => {
+		const addToWatchedFiles = (fid, params, code = null) =>{
 			watchedFiles[fid] = {
-				module : false,
-				params : params,
+				module : Boolean(code),
+				params : (params ? params : {}),
+				url    : (params ? params.url : null),
 				mimeType : mimeTypes[mod_path.extname(fid).slice(1)]
 			};
 
-			if      (params.type === 'file'  ) files[fid] = {
-				srcPath: params.src || fid,
-				isPage : params.isPage
-			};
-			else if (params.type === 'cached') cache[fid] = {
-				content: fs.readFileSync(params.src || fid, 'utf8'),
-				srcPath: params.src || fid,
-				isPage : params.isPage
-			};
+			if (params) {
+				if      (params.type === 'file'    ) files[params.url || fid] = {
+					srcPath: params.src || fid,
+					isPage : params.isPage
+				};
+				else if (params.type === 'cached'  ) {
+					let content = code || fs.readFileSync(params.src || fid, 'utf8');
+					for (let cm of cacheModificators) content = cm(content);
+					cache[params.url || fid] = {
+						content: content,
+						srcPath: params.src || fid,
+						isPage : params.isPage
+					};
+				}
+			}
 		};
 
 		medulla.indexName = process.env.indexName;
@@ -600,22 +617,9 @@ module.exports = customSettings=>{
 
 			let m = require(filepath);
 
-			if (modulesParams[filepath]) m.clientSide = modulesParams[filepath];
-			watchedFiles[filepath] = {
-				module : true,
-				url    : (m.clientSide ? m.clientSide.url : null),
-				params : (m.clientSide ? m.clientSide : {})
-			};
+			let clientSide = modulesParams[filepath];
 
-			if (m.clientSide) {
-				if      (m.clientSide.type === 'file'    ) files[m.clientSide.url] = {
-					srcPath: filepath
-				};
-				else if (m.clientSide.type === 'cached'  ) cache[m.clientSide.url] = {
-					content: code,
-					srcPath: filepath,
-				};
-			}
+			addToWatchedFiles(filepath, clientSide, code);
 
 			//INSTALL DYNAMIC MODULES (INCLUDED IN FUNCTION)
 			let submods = getSubmodules(code);
