@@ -1,5 +1,12 @@
 # Changelog
 
+## V 0.3.8-dev
+##### Improvements
+- Modified plugins api, added `cacheModificator`
+
+##### Fixes
+- isPage added for modules and cache updates
+
 ## V 0.3.7
 ##### Changes
 - log files format is updated: `traces-YEAR-MM-DD.log`

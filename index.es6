@@ -300,9 +300,10 @@ module.exports = customSettings=>{
 									if (fileparam.params.type === 'cached') {
 										let keys = Object.keys(cluster.workers);
 										for (let key of keys) cluster.workers[key].send({
-											type : 'updateCache',
-											url  : fid,
-											path : fileparam.params.src || fid
+											type   : 'updateCache',
+											url    : fid,
+											path   : fileparam.params.src || fid,
+											isPage : fileparam.params.isPage
 										});
 									}
 									for (let h of handlersModify) h(fid, fileparam);
@@ -455,15 +456,16 @@ module.exports = customSettings=>{
 
 		//MESSAGE HANDLER
 		process.on('message', function(msg) {
-			if      (msg.type === 'updateCache') {
+			if (msg.type === 'updateCache') {
 				let content = fs.readFileSync(msg.path, 'utf8');
-				for (let cm of cacheModificators) content = cm(content);
-				cache[(msg.url || msg.path)] = {
+				for (let cm of cacheModificators) content = cm(content, msg.path, msg.url || msg.path);
+				if (typeof content === 'string') cache[(msg.url || msg.path)] = {
 					content: content,
-					srcPath: msg.path
+					srcPath: msg.path,
+					isPage : msg.isPage
 				};
 			}
-			else if (msg.type === 'end'        ) process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
+			else if (msg.type === 'end') process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
 		});
 
 		const addToWatchedFiles = (fid, params, code = null) =>{
@@ -475,14 +477,14 @@ module.exports = customSettings=>{
 			};
 
 			if (params) {
-				if      (params.type === 'file'    ) files[params.url || fid] = {
+				if      (params.type === 'file') files[params.url || fid] = {
 					srcPath: params.src || fid,
 					isPage : params.isPage
 				};
-				else if (params.type === 'cached'  ) {
+				else if (params.type === 'cached') {
 					let content = code || fs.readFileSync(params.src || fid, 'utf8');
-					for (let cm of cacheModificators) content = cm(content);
-					cache[params.url || fid] = {
+					for (let cm of cacheModificators) content = cm(content, params.src || fid, params.url || fid);
+					if (typeof content === 'string') cache[params.url || fid] = {
 						content: content,
 						srcPath: params.src || fid,
 						isPage : params.isPage
@@ -615,7 +617,7 @@ module.exports = customSettings=>{
 				return;
 			}
 
-			let m = require(filepath);
+			//let m = require(filepath);
 
 			let clientSide = modulesParams[filepath];
 
