@@ -1,8 +1,12 @@
 # Changelog
 
-## V 0.3.8-dev
+## V 0.4.0
+##### Changes
+- **(!)** watchedList / publicAccess: `src` and `url` are reversed (src param removed, url param added)
+
 ##### Improvements
 - Modified plugins api, added `cacheModificator`
+- `image/x-icon` added to standart mimeTypes
 
 ##### Fixes
 - isPage added for modules and cache updates

@@ -3,13 +3,13 @@
 
 ## Features
 - The server use several workers for multithreaded request handling.
-- Do no need daemons, set [flag](#list-of-all-settings-with-default-values) `watch:true` 
+- Do no need "demonizers", set [flag](#list-of-all-settings-with-default-values) `watch:true` 
 and server will do restart workers when detect changes in modules, 
 and update cache when changed scripts (files with [prop](#main-module) `type:cached`).
 - Can work as a proxy server and forwarding requests to the specified domain.
+- Supports the logging to files for commands `console.log()`, `consol.warn()`, `console.error()`.
 
 **(!)** *module in development, this is unstable version with incomplete functional.*  
-
 If you found bugs or you have suggestions for improvement, please feel free to submit them to e-mail:
 [mailbox@mothgears.com](mailto:mailbox@mothgears.com)
 
@@ -24,6 +24,8 @@ As [git](https://github.com/mothgears/medulla.git) repository
 #### Entry point and config
 Create an entry point (e.g. server.js) and require medulla with some settings (for example):
 ```es6
+//server.js
+
 require('medulla')({
     serverApp : "./myApp.js"
     platforms :{
@@ -65,25 +67,28 @@ This plugins used only in dev mode (-dev).
 If set "true", the devPlugins will be included.
 
 - `proxyCookieDomain: "localhost"`  
-Proxy cookie domain name.
+Proxy cookie domain name (for proxy mode).
 
 - `logging: {level:'trace', dir:process.cwd(), separatedTypes:false}`  
 Async logging to file for "console.log()", "console.warn()" and "console.error()" methods.  
-  - `level`  
+  - `level: 'trace'`  
   is min level for logging, can be "trace", "warning" or "error".
-  - `dir`  
+  - `dir: process.cwd()`  
   directory for .log files.
-  - `separatedTypes`  
+  - `separatedTypes: false`  
   split log into several files by level.
 
 #### Main module
-Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list
+Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list:
 ```es6
+//myApp.js
+
 module.exports.publicAccess = {
-    //access rules in format 'url:{params}'
+    //access rules in format 'src:{params}'
     
-    "~*?" : "public_html/~*?", //access to all files from "public_html" folder and subfolders
-    "pic/*.png" : "images/*.png", //access to all png files directly from "images" folder
+    "readme.txt"      : "readme.txt",
+    "public_html/~*?" : "~*?", //access to all files from "public_html" folder and subfolders
+    "images/*.png"    : "pic/*.png", //access to all png files directly from "images" folder
 };
 ```
 - `~`  
@@ -94,47 +99,55 @@ File name
 File extension
 
 
-Also add `watchedFiles` list (files must exist on server), these files will be watched by server
+Also add `watchedFiles` list (files must exist on server), these files will be watched by server:
 ```es6
+//myApp.js
+
 module.exports.watchedFiles = {
-    //indexed files in format 'url:{params}'
+    //indexed files in format 'src:{params}'
     
     //Templates for search
-    "scripts/*.js"      : {type:"cached", src:"bin/*.js"}, //all js files directly from "bin" folder
+    "bin/*.js" : {type:"cached", url:"scripts/*.js"}, //all js files directly from "bin" folder
     
     //Concrete files
-    "readme.txt"        : {type:"file"},
-    "styles/main.css"   : {type:"cached"},
-    "client-script.es6" : {type:"cached", src:"bin/client-script.es6"}
+    "styles/main.css"       : {type:"cached"},
+    "bin/client-script.es6" : {type:"cached", url:"client-script.es6"}
 };
 ```
 **(!)** *unlike a `publicAccess` list, this list is not filters or directories, just files, therefore removing or adding this files on server (when medulla is launched) may throw error.*  
 **(!)** *don't add modules to watchedFiles, required modules added automatically.*
 
+- `type:"cached"`  
+*(Default value)*  
+Add file content to variable (for each worker).
 - `type:"file"`  
 Will read file from disc in every request.  
-- `type:"cached"`  
-Add file content to variable (for each worker).
 - `isPage:false`  
-Included medulla js code to page (use for html-pages).
+If set is true, medulla js code (plugins) will be included to this page (use for all html-pages).
   
-Default path to file is url, but you may specify it directly use `src` param.  
+Default url is path to file, but you may specify it directly use `url` param.  
 
 To share included modules also as js script, use `medulla.require` function instead of `require`:
 ```es6
+//Sample
+
 const myModule1 = medulla.require('./myModule1.js', {url:'client-module1.js', type:'cached'});
 const myModule2 = medulla.require('./myModule2.js', {url:'client-module2.js', type:'file'});
 ```
 
-Add extra mime types in format {"ext":"mime"}.
+Add extra mime types in format {"ext":"mime"}:
 ```es6
+//myApp.js
+
 module.exports.mimeTypes : {
     "es6" : "application/javascript"
 },
 ```
 
-Describe the worker function
+Describe the worker function:
 ```es6
+//myApp.js
+
 module.exports.onRequest = (request, response)=>{
     if (request.url !== '/') return 404;
 

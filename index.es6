@@ -13,11 +13,8 @@ module.exports = customSettings=>{
 		_00  = n=>n<10  ? ('0'+n)      : n,
 		_000 = n=>n<100 ? ('0'+_00(n)) : n;
 
-	//GLOBAL SERVER INTERFACE
-	global.medulla = {};
-
 	//SETTINGS
-	let settings = medulla.settings = {
+	let settings = {
 		port              : 3000,
 		wsPort            : 9000,
 		serverDir         : process.cwd(),
@@ -35,6 +32,14 @@ module.exports = customSettings=>{
 			separatedTypes: false,
 			dir: process.cwd()
 		}
+	};
+
+	let _require = null;
+
+	//GLOBAL SERVER INTERFACE
+	global.medulla = new class {
+		get settings () {return settings;}
+		get require  () {return _require;}
 	};
 
 	let mimeTypes = require('./mimeTypes.json');
@@ -171,9 +176,9 @@ module.exports = customSettings=>{
 			onRestartEnd = [],
 			error = null,
 			lauched = 0,
-			exits = 0,
+			exits = 0;
 			//indexing,
-			indexName = undefined;
+			//indexName = undefined;
 
 		//PLUGINS
 		for (let pid of pluginIndex) {
@@ -185,6 +190,7 @@ module.exports = customSettings=>{
 			if (p.medullaPlugin.onLaunch)    handlersLaunch.push(p.medullaPlugin.onLaunch);
 			if (p.medullaPlugin.onShutdown)  handlersShutdown.push(p.medullaPlugin.onShutdown);
 			if (p.medullaPlugin.onError)     handlersError.push(p.medullaPlugin.onError);
+			//if (p.medullaPlugin.init)        p.medullaPlugin.init(false);
 		}
 		pluginsJS = 'window.medulla = {settings:'+JSON.stringify(settings)+'};'+pluginsJS;
 
@@ -209,8 +215,8 @@ module.exports = customSettings=>{
 					workerPlugins:JSON.stringify(workerPlugins),
 					mainWorker: (i+1 === threads)?'1':'0'
 				};
-				if (indexName) pars['indexName'] = indexName;
-				cluster.fork(pars).on('message', medulla._handle);
+				//if (indexName) pars['indexName'] = indexName;
+				cluster.fork(pars).on('message', _handle);
 			}
 		};
 
@@ -248,7 +254,7 @@ module.exports = customSettings=>{
 			return true;
 		};
 
-		medulla._handle = msg=>{
+		function _handle (msg) {
 			//UPDATE WATCHERS AFTER START WORKERS
 			if (msg.type === 'update_watchers') {
 				//clearInterval(indexing);
@@ -265,12 +271,12 @@ module.exports = customSettings=>{
 				}
 
 				keys = Object.keys(fileIndex);
-				for (let fid of keys) {
-					if (!watchers[fid]) {
-						console.info(`index add "${fid}"`);
+				for (let filepath of keys) {
+					if (!watchers[filepath]) {
+						console.info(`index add "${filepath}"`);
 
 						//ADD WATCHER
-						let fileparam = fileIndex[fid];
+						let fileparam = fileIndex[filepath];
 						if (fileparam.module) {
 							let onFileChange = eventType => {
 								if (eventType === 'change') {
@@ -278,19 +284,19 @@ module.exports = customSettings=>{
 
 									//RESTART OR WISH TO RESTART
 									ordersToStart = 0;
-									for (let h of handlersModify) h(fid, fileparam, restartServer);
+									for (let h of handlersModify) h(filepath, fileparam, restartServer);
 									restartServer();
 
 									//FORCEWATCH
-									if (settings.forcewatch && watchers[fid].noWatch) {
-										watchers[fid].close();
-										watchers[fid] = fs.watch(fid, {}, onFileChange);
-										watchers[fid].fileparam = fileparam;
+									if (settings.forcewatch && watchers[filepath].noWatch) {
+										watchers[filepath].close();
+										watchers[filepath] = fs.watch(filepath, {}, onFileChange);
+										watchers[filepath].fileparam = fileparam;
 									}
-								} else if (settings.forcewatch) watchers[fid].noWatch = true;
+								} else if (settings.forcewatch) watchers[filepath].noWatch = true;
 							};
-							watchers[fid] = fs.watch(fid, {}, onFileChange);
-							watchers[fid].fileparam = fileparam;
+							watchers[filepath] = fs.watch(filepath, {}, onFileChange);
+							watchers[filepath].fileparam = fileparam;
 
 						} else {
 							let onFileChange = eventType => {
@@ -301,23 +307,23 @@ module.exports = customSettings=>{
 										let keys = Object.keys(cluster.workers);
 										for (let key of keys) cluster.workers[key].send({
 											type   : 'updateCache',
-											url    : fid,
-											path   : fileparam.params.src || fid,
+											url    : fileparam.params.url || filepath,
+											path   : /*fileparam.params.src || */filepath,
 											isPage : fileparam.params.isPage
 										});
 									}
-									for (let h of handlersModify) h(fid, fileparam);
+									for (let h of handlersModify) h(filepath, fileparam);
 
 									//FORCEWATCH
-									if (settings.forcewatch && watchers[fid].noWatch) {
-										watchers[fid].close();
-										watchers[fid] = fs.watch(fileparam.params.src || fid, {}, onFileChange);
-										watchers[fid].fileparam = fileparam;
+									if (settings.forcewatch && watchers[filepath].noWatch) {
+										watchers[filepath].close();
+										watchers[filepath] = fs.watch(/*fileparam.params.src || */filepath, {}, onFileChange);
+										watchers[filepath].fileparam = fileparam;
 									}
-								} else if (settings.forcewatch) watchers[fid].noWatch = true;
+								} else if (settings.forcewatch) watchers[filepath].noWatch = true;
 							};
-							watchers[fid] = fs.watch(fileparam.params.src || fid, {}, onFileChange);
-							watchers[fid].fileparam = fileparam;
+							watchers[filepath] = fs.watch(/*fileparam.params.src || */filepath, {}, onFileChange);
+							watchers[filepath].fileparam = fileparam;
 						}
 					}
 				}
@@ -337,7 +343,7 @@ module.exports = customSettings=>{
 			} else {
 				if (!error && msg.error) error = {value:msg.error, title:msg.title};
 
-				if (msg.indexName) indexName = msg.indexName;
+				//if (msg.indexName) indexName = msg.indexName;
 
 				let exitcode = null;
 				if      (msg.type === 'pause'  ) exitcode = '1';
@@ -358,7 +364,7 @@ module.exports = customSettings=>{
 					} catch(e){}
 				}
 			}
-		};
+		}
 
 		cluster.on('exit', (w, code)=>{
 			exits++;
@@ -393,6 +399,38 @@ module.exports = customSettings=>{
 		const mod_url  = require('url');
 		const mod_zlib = require('zlib');
 
+		//
+		let handlerRequest = null,
+			watchedFiles   = {},
+			cache          = {},
+			//fileAccess     = {},
+			files          = {};
+
+		const addToWatchedFiles = (filepath, params, code = null) =>{
+			watchedFiles[filepath] = {
+				module : Boolean(code),
+				params : (params ? params : {}),
+				url    : (params ? params.url : null),
+				mimeType : mimeTypes[mod_path.extname(filepath).slice(1)]
+			};
+
+			if (params) {
+				if      (params.type === 'file') files[params.url || filepath] = {
+					srcPath: /*params.src || */filepath,
+					isPage : params.isPage
+				};
+				else if (params.type === 'cached') {
+					let content = code || fs.readFileSync(/*params.src || */filepath, 'utf8');
+					for (let cm of cacheModificators) content = cm(content, /*params.src || */filepath, params.url || filepath);
+					if (typeof content === 'string') cache[params.url || filepath] = {
+						content: content,
+						srcPath: /*params.src || */filepath,
+						isPage : params.isPage
+					};
+				}
+			}
+		};
+
 		//PLUGINS
 		let workerPlugins     = JSON.parse(process.env.workerPlugins),
 			cacheModificators = [];
@@ -400,6 +438,7 @@ module.exports = customSettings=>{
 		for (let plugin of workerPlugins) {
 			let p = require(plugin);
 			if (p.medullaPlugin.cacheModificator) cacheModificators.push(p.medullaPlugin.cacheModificator);
+			//if (p.medullaPlugin.init) p.medullaPlugin.init(true, addToWatchedFiles);
 		}
 
 		//TOOLS
@@ -427,9 +466,9 @@ module.exports = customSettings=>{
 			return undefined;
 		};
 
-		//medulla.require
+		//REQUIRE
 		let modulesParams = {};
-		medulla.require = (mdl, clientSide = null)=>{
+		_require = (mdl, clientSide = null)=>{
 			let dir = mod_path.dirname(getCallerFile());
 			mdl = require.resolve(mod_path.resolve(dir, mdl));
 			modulesParams[mdl] = clientSide;
@@ -448,12 +487,6 @@ module.exports = customSettings=>{
 			}
 		});
 
-		let handlerRequest = null,
-			watchedFiles   = {},
-			cache          = {},
-			fileAccess     = {},
-			files          = {};
-
 		//MESSAGE HANDLER
 		process.on('message', function(msg) {
 			if (msg.type === 'updateCache') {
@@ -468,36 +501,11 @@ module.exports = customSettings=>{
 			else if (msg.type === 'end') process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
 		});
 
-		const addToWatchedFiles = (fid, params, code = null) =>{
-			watchedFiles[fid] = {
-				module : Boolean(code),
-				params : (params ? params : {}),
-				url    : (params ? params.url : null),
-				mimeType : mimeTypes[mod_path.extname(fid).slice(1)]
-			};
-
-			if (params) {
-				if      (params.type === 'file') files[params.url || fid] = {
-					srcPath: params.src || fid,
-					isPage : params.isPage
-				};
-				else if (params.type === 'cached') {
-					let content = code || fs.readFileSync(params.src || fid, 'utf8');
-					for (let cm of cacheModificators) content = cm(content, params.src || fid, params.url || fid);
-					if (typeof content === 'string') cache[params.url || fid] = {
-						content: content,
-						srcPath: params.src || fid,
-						isPage : params.isPage
-					};
-				}
-			}
-		};
-
-		medulla.indexName = process.env.indexName;
+		/*medulla.indexName = process.env.indexName;
 		medulla.restart = (indexName = global.medulla.indexName)=>{
 			global.medulla.indexName = indexName;
 			process.send({type:'restart', indexName: global.medulla.indexName});
-		};
+		};*/
 
 		//REQUIRE MAIN MODULE
 		let mm = {};
@@ -525,19 +533,19 @@ module.exports = customSettings=>{
 			for (let k of ks) mimeTypes[k] = mm.mimeTypes[k];
 		}
 
-		if (mm.publicAccess) {
+		/*if (mm.publicAccess) {
 			fileAccess = mm.publicAccess;
-		}
+		}*/
 
 		const accessToFile = url=>{
 			let ext = mod_path.extname(url);
 			let dir = mod_path.dirname(url);
 			let filename = mod_path.basename(url, ext);
 
-			let turls = Object.keys(fileAccess);
+			let tpaths = Object.keys(mm.publicAccess || {});
 
-			for (let turl of turls) {
-				let tpath = fileAccess[turl];
+			for (let tpath of tpaths) {
+				let turl = mm.publicAccess[tpath];
 				let rurl = turl.replace('~', dir+'/').replace('*', filename).replace('?', ext);
 				if (rurl === url) {
 					let rpath = process.cwd() + '/' + tpath.replace('~', dir+'/').replace('*', filename).replace('?', ext);
@@ -552,13 +560,13 @@ module.exports = customSettings=>{
 			//if (global.medulla.indexName) mm.watchedFiles = mm.watchedFiles[global.medulla.indexName];
 
 			let fileIndexFiles = Object.keys(mm.watchedFiles);
-			for (let fid of fileIndexFiles) {
-				let params = mm.watchedFiles[fid];
+			for (let filepath of fileIndexFiles) {
+				let params = mm.watchedFiles[filepath];
 
 				params.type = params.type || 'cached';
 
-				if (fid.search(/[*?~]/g) >= 0) { //TEMPLATE PROCESSING
-					let pathTo = (params.src || fid);
+				if (filepath.search(/[*?~]/g) >= 0) { //TEMPLATE PROCESSING
+					let pathTo = filepath;//(/*params.src || */filepath);
 
 					let ext = null;
 					if (pathTo.endsWith('?')) pathTo = pathTo.slice(0, -1);
@@ -591,11 +599,11 @@ module.exports = customSettings=>{
 								let _fln = mod_path.basename(filename, _ext);
 
 								let fileParams = Object.assign({}, params);
-								fileParams.src = mod_path.resolve(dir, _fln+_ext);
-								let fileId = fid.replace('*', _fln).replace('?', _ext);
-								if (recursive) fileId = fileId.replace('~', sdir);
+								let filePath = mod_path.resolve(dir, _fln+_ext);
+								fileParams.url = (params.url || filepath).replace('*', _fln).replace('?', _ext);
+								if (recursive) fileParams.url = fileParams.url.replace('~', sdir);
 
-								addToWatchedFiles(fileId, fileParams);
+								addToWatchedFiles(filePath, fileParams);
 							}
 						});
 					};
@@ -603,7 +611,7 @@ module.exports = customSettings=>{
 					processDir(dir);
 
 				} else {
-					addToWatchedFiles(fid, params);
+					addToWatchedFiles(filepath, params);
 				}
 			}
 		}

@@ -10,6 +10,7 @@
   "jpg" : "image/jpeg",
   "gif" : "image/gif",
   "svg" : "image/svg+xml",
+  "ico" : "image/x-icon",
 
   "zip" : "application/zip",
   "gzip": "application/gzip",
