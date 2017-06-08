@@ -38,7 +38,7 @@ module.exports = customSettings=>{
 
 	//GLOBAL SERVER INTERFACE
 	global.medulla = new class {
-		get settings () {return settings;}
+		//get settings () {return settings;}
 		get require  () {return _require;}
 	};
 
@@ -184,13 +184,21 @@ module.exports = customSettings=>{
 		for (let pid of pluginIndex) {
 			let plugin = pluginsByPriority[pid];
 			let p = require(plugin);
-			if (p.medullaPlugin.useOnClient) pluginsJS += fs.readFileSync(require.resolve(plugin), 'utf8');
-			if (p.medullaPlugin.useOnWorker) workerPlugins.push(plugin);
-			if (p.medullaPlugin.onModify)    handlersModify.push(p.medullaPlugin.onModify);
-			if (p.medullaPlugin.onLaunch)    handlersLaunch.push(p.medullaPlugin.onLaunch);
-			if (p.medullaPlugin.onShutdown)  handlersShutdown.push(p.medullaPlugin.onShutdown);
-			if (p.medullaPlugin.onError)     handlersError.push(p.medullaPlugin.onError);
-			//if (p.medullaPlugin.init)        p.medullaPlugin.init(false);
+			if (p.medullaMaster) {
+				let io = {}; p.medullaMaster(io, settings);
+				if (io.onModify)   handlersModify  .push(io.onModify);
+				if (io.onLaunch)   handlersLaunch  .push(io.onLaunch);
+				if (io.onShutdown) handlersShutdown.push(io.onShutdown);
+				if (io.onError)    handlersError   .push(io.onError);
+			}
+			if (p.medullaWorker) {
+				workerPlugins.push(plugin);
+			}
+			if (p.medullaClient) {
+				let body = p.medullaClient.toString();
+				body = body.slice(body.indexOf("{") + 1, body.lastIndexOf("}"));
+				pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
+			}
 		}
 		pluginsJS = 'window.medulla = {settings:'+JSON.stringify(settings)+'};'+pluginsJS;
 
@@ -394,7 +402,7 @@ module.exports = customSettings=>{
 
 	} else {
 		//LIBS
-		const getSubmodules = require('./mod-requires.es6');
+		const getRequires = require('./detectRequires.es6');
 		const mod_http = require('http');
 		const mod_url  = require('url');
 		const mod_zlib = require('zlib');
@@ -437,8 +445,11 @@ module.exports = customSettings=>{
 
 		for (let plugin of workerPlugins) {
 			let p = require(plugin);
-			if (p.medullaPlugin.cacheModificator) cacheModificators.push(p.medullaPlugin.cacheModificator);
-			//if (p.medullaPlugin.init) p.medullaPlugin.init(true, addToWatchedFiles);
+			if (p.medullaWorker) {
+				let io = {getRequires}; p.medullaWorker(io, settings);
+				if (io.cacheModificator) cacheModificators.push(io.cacheModificator);
+			}
+			//if (p.medullaPlugin.workerInit) p.medullaPlugin.workerInit(addToWatchedFiles);
 		}
 
 		//TOOLS
@@ -632,7 +643,7 @@ module.exports = customSettings=>{
 			addToWatchedFiles(filepath, clientSide, code);
 
 			//INSTALL DYNAMIC MODULES (INCLUDED IN FUNCTION)
-			let submods = getSubmodules(code);
+			let submods = getRequires(code);
 			for (let submod of submods) {
 				if (!require.cache[submod]) installModule(submod);
 			}

@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.5.0
+##### Changes
+- plugins API is fully changed
+
 ## V 0.4.0
 ##### Changes
 - **(!)** watchedList / publicAccess: `src` and `url` are reversed (src param removed, url param added)

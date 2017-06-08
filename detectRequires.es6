@@ -18,7 +18,7 @@ const removeComments = (str)=>{
 		.replace(new RegExp(uid + '(\\d+)', 'g'), (match, n)=>primatives[n]);
 };
 
-module.exports = (mcode)=>{
+module.exports = (mcode, resolve = require.resolve)=>{
 	let requires = [];
 
 	mcode = removeComments(mcode).replace(/\s+/g, '');
@@ -30,7 +30,7 @@ module.exports = (mcode)=>{
 			r = r.replace(/["']/g, "");
 			if (r) {
 				try {
-					r = require.resolve(r);
+					r = resolve(r);
 				} catch (e) {
 					r = null;
 				}

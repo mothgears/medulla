@@ -20,6 +20,10 @@ As [npm](https://www.npmjs.com/package/medulla) package
 As [git](https://github.com/mothgears/medulla.git) repository  
 `git clone https://github.com/mothgears/medulla.git`
 
+## Plugins
+- [medulla-hotcode](https://www.npmjs.com/package/medulla-hotcode)  
+Plugin for hot reload pages, scripts and styles.
+
 ## Usage
 #### Entry point and config
 Create an entry point (e.g. server.js) and require medulla with some settings (for example):
@@ -177,10 +181,6 @@ and open the site in browser (e.g. localhost:3000)
 #### Console commands
   - `version` - show current module version  
   - `stop` - shutdown server
-
-## Plugins
-- [medulla-hotcode](https://www.npmjs.com/package/medulla-hotcode)  
-Plugin for hot reload pages, scripts and styles.
 
 ## License
 MIT
