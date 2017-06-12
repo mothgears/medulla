@@ -22,7 +22,7 @@ As [git](https://github.com/mothgears/medulla.git) repository
 
 ## Plugins
 - [medulla-hotcode](https://www.npmjs.com/package/medulla-hotcode)  
-Plugin for hot reload pages, scripts and styles.
+Plugin for hot reload pages, scripts and styles directly in browser.
 
 ## Usage
 #### Entry point and config

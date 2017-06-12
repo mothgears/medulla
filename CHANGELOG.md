@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.5.1
+- added "as" information to "index add" info.
+- to plugins API added method `toClient`
+
 ## V 0.5.0
 ##### Changes
 - plugins API is fully changed

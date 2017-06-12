@@ -34,13 +34,8 @@ module.exports = customSettings=>{
 		}
 	};
 
-	let _require = null;
-
 	//GLOBAL SERVER INTERFACE
-	global.medulla = new class {
-		//get settings () {return settings;}
-		get require  () {return _require;}
-	};
+	global.medulla = {};
 
 	let mimeTypes = require('./mimeTypes.json');
 
@@ -180,25 +175,28 @@ module.exports = customSettings=>{
 			//indexing,
 			//indexName = undefined;
 
+		const toClient = func=>{
+			if (typeof func === 'function') {
+				let body = func.toString();
+				body = body.slice(body.indexOf("{") + 1, body.lastIndexOf("}"));
+				pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
+			} else pluginsJS += func;
+		};
+
 		//PLUGINS
 		for (let pid of pluginIndex) {
 			let plugin = pluginsByPriority[pid];
 			let p = require(plugin);
 			if (p.medullaMaster) {
-				let io = {}; p.medullaMaster(io, settings);
+				let io = {toClient};
+				p.medullaMaster(io, settings);
 				if (io.onModify)   handlersModify  .push(io.onModify);
 				if (io.onLaunch)   handlersLaunch  .push(io.onLaunch);
 				if (io.onShutdown) handlersShutdown.push(io.onShutdown);
 				if (io.onError)    handlersError   .push(io.onError);
 			}
-			if (p.medullaWorker) {
-				workerPlugins.push(plugin);
-			}
-			if (p.medullaClient) {
-				let body = p.medullaClient.toString();
-				body = body.slice(body.indexOf("{") + 1, body.lastIndexOf("}"));
-				pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
-			}
+			if (p.medullaWorker) workerPlugins.push(plugin);
+			if (p.medullaClient) toClient(p.medullaClient)
 		}
 		pluginsJS = 'window.medulla = {settings:'+JSON.stringify(settings)+'};'+pluginsJS;
 
@@ -281,10 +279,11 @@ module.exports = customSettings=>{
 				keys = Object.keys(fileIndex);
 				for (let filepath of keys) {
 					if (!watchers[filepath]) {
-						console.info(`index add "${filepath}"`);
-
 						//ADD WATCHER
 						let fileparam = fileIndex[filepath];
+
+						console.info(`index add "${filepath}"` + (fileparam.url?` as "${fileparam.url}"`:''));
+
 						if (fileparam.module) {
 							let onFileChange = eventType => {
 								if (eventType === 'change') {
@@ -479,7 +478,7 @@ module.exports = customSettings=>{
 
 		//REQUIRE
 		let modulesParams = {};
-		_require = (mdl, clientSide = null)=>{
+		medulla.require = (mdl, clientSide = null)=>{
 			let dir = mod_path.dirname(getCallerFile());
 			mdl = require.resolve(mod_path.resolve(dir, mdl));
 			modulesParams[mdl] = clientSide;
@@ -636,10 +635,7 @@ module.exports = customSettings=>{
 				return;
 			}
 
-			//let m = require(filepath);
-
 			let clientSide = modulesParams[filepath];
-
 			addToWatchedFiles(filepath, clientSide, code);
 
 			//INSTALL DYNAMIC MODULES (INCLUDED IN FUNCTION)
