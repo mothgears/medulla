@@ -1,7 +1,10 @@
 # Changelog
 
+## V 0.5.2
+- removing watched files from disk now is handled
+
 ## V 0.5.1
-- added "as" information to "index add" info.
+- added "as" information to "index add" info
 - to plugins API added method `toClient`
 
 ## V 0.5.0
@@ -13,7 +16,7 @@
 - **(!)** watchedList / publicAccess: `src` and `url` are reversed (src param removed, url param added)
 
 ##### Improvements
-- Modified plugins api, added `cacheModificator`
+- modified plugins api, added `cacheModificator`
 - `image/x-icon` added to standart mimeTypes
 
 ##### Fixes

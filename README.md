@@ -118,7 +118,7 @@ module.exports.watchedFiles = {
     "bin/client-script.es6" : {type:"cached", url:"client-script.es6"}
 };
 ```
-**(!)** *unlike a `publicAccess` list, this list is not filters or directories, just files, therefore removing or adding this files on server (when medulla is launched) may throw error.*  
+**(!)** *unlike a `publicAccess` list, this list is not filters or directories, just files, therefore adding new files on server will not handled without restarting medulla (or without modules code changing in `watch: true` mode).*  
 **(!)** *don't add modules to watchedFiles, required modules added automatically.*
 
 - `type:"cached"`  

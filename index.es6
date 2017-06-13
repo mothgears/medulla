@@ -307,27 +307,42 @@ module.exports = customSettings=>{
 
 						} else {
 							let onFileChange = eventType => {
-								if (eventType === 'change') {
-									//console.info('modified ' + fid);
-									//UPDATE ALL WORKERS
+								//console.info(eventType + ':' + filepath);
+								if (!fs.existsSync(filepath)) {
+									watchers[filepath].close();
+									delete watchers[filepath];
+
 									if (fileparam.params.type === 'cached') {
 										let keys = Object.keys(cluster.workers);
 										for (let key of keys) cluster.workers[key].send({
-											type   : 'updateCache',
-											url    : fileparam.params.url || filepath,
-											path   : /*fileparam.params.src || */filepath,
-											isPage : fileparam.params.isPage
+											type: 'updateCache',
+											url : fileparam.params.url || filepath
 										});
 									}
 									for (let h of handlersModify) h(filepath, fileparam);
+								} else {
+									if (eventType === 'change') {
+										//console.info('modified ' + fid);
+										//UPDATE ALL WORKERS
+										if (fileparam.params.type === 'cached') {
+											let keys = Object.keys(cluster.workers);
+											for (let key of keys) cluster.workers[key].send({
+												type   : 'updateCache',
+												url    : fileparam.params.url || filepath,
+												path   : filepath,
+												isPage : fileparam.params.isPage
+											});
+										}
+										for (let h of handlersModify) h(filepath, fileparam);
 
-									//FORCEWATCH
-									if (settings.forcewatch && watchers[filepath].noWatch) {
-										watchers[filepath].close();
-										watchers[filepath] = fs.watch(/*fileparam.params.src || */filepath, {}, onFileChange);
-										watchers[filepath].fileparam = fileparam;
-									}
-								} else if (settings.forcewatch) watchers[filepath].noWatch = true;
+										//FORCEWATCH
+										if (settings.forcewatch && watchers[filepath].noWatch) {
+											watchers[filepath].close();
+											watchers[filepath] = fs.watch(/*fileparam.params.src || */filepath, {}, onFileChange);
+											watchers[filepath].fileparam = fileparam;
+										}
+									} else if (settings.forcewatch) watchers[filepath].noWatch = true;
+								}
 							};
 							watchers[filepath] = fs.watch(/*fileparam.params.src || */filepath, {}, onFileChange);
 							watchers[filepath].fileparam = fileparam;
@@ -500,13 +515,17 @@ module.exports = customSettings=>{
 		//MESSAGE HANDLER
 		process.on('message', function(msg) {
 			if (msg.type === 'updateCache') {
-				let content = fs.readFileSync(msg.path, 'utf8');
-				for (let cm of cacheModificators) content = cm(content, msg.path, msg.url || msg.path);
-				if (typeof content === 'string') cache[(msg.url || msg.path)] = {
-					content: content,
-					srcPath: msg.path,
-					isPage : msg.isPage
-				};
+				if (msg.path) {
+					let content = fs.readFileSync(msg.path, 'utf8');
+					for (let cm of cacheModificators) content = cm(content, msg.path, msg.url);
+					if (typeof content === 'string') cache[msg.url] = {
+						content: content,
+						srcPath: msg.path,
+						isPage : msg.isPage
+					};
+				} else {
+					delete cache[msg.url];
+				}
 			}
 			else if (msg.type === 'end') process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
 		});
