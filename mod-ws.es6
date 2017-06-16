@@ -1,14 +1,14 @@
 //SERVER
 //----------------------------------------------------------------------------------------------------------------------
-module.exports.medullaMaster = (io, settings)=>{
+module.exports.medullaMaster = io=>{
 	let ws_srv = null;
 	Object.defineProperty(medulla, "ws", {
 		get () {
 			if (!ws_srv) {
-				ws_srv = new (require('ws').Server)({port: settings.wsPort});
+				ws_srv = new (require('ws').Server)({port: io.settings.wsPort});
 
 				medulla.wsClients = {};
-				settings.useWebSocket = true;
+				io.settings.useWebSocket = true;
 
 				let index = 0;
 				ws_srv.on('connection', ws => {

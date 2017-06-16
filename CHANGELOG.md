@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.5.3
+- fixed bug with incorrect handling "`~`" symbol in templates of `publicAccess`
+- plugins api: `settings` argument moved to `io` argument
+
 ## V 0.5.2
 - removing watched files from disk now is handled
 

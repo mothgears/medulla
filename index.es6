@@ -143,6 +143,14 @@ module.exports = customSettings=>{
 	pluginIndex = Object.keys(pluginsByPriority);
 	pluginIndex.sort();
 
+	//PLUGINS
+	/*for (let pid of pluginIndex) {
+		let plugin = pluginsByPriority[pid];
+		let p = require(plugin);
+		let io = {settings};
+		if (p.medullaGlobal) p.medullaGlobal(io);
+	}*/
+
 	//MASTER
 	if (cluster.isMaster) {
 		//COMMANDS
@@ -172,8 +180,6 @@ module.exports = customSettings=>{
 			error = null,
 			lauched = 0,
 			exits = 0;
-			//indexing,
-			//indexName = undefined;
 
 		const toClient = func=>{
 			if (typeof func === 'function') {
@@ -188,8 +194,8 @@ module.exports = customSettings=>{
 			let plugin = pluginsByPriority[pid];
 			let p = require(plugin);
 			if (p.medullaMaster) {
-				let io = {toClient};
-				p.medullaMaster(io, settings);
+				let io = {settings, toClient};
+				p.medullaMaster(io);
 				if (io.onModify)   handlersModify  .push(io.onModify);
 				if (io.onLaunch)   handlersLaunch  .push(io.onLaunch);
 				if (io.onShutdown) handlersShutdown.push(io.onShutdown);
@@ -453,6 +459,15 @@ module.exports = customSettings=>{
 			}
 		};
 
+		//TO CLIENT
+		const toClient = func=>{
+			if (typeof func === 'function') {
+				let body = func.toString();
+				body = body.slice(body.indexOf("{") + 1, body.lastIndexOf("}"));
+		 		process.env.pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
+			} else process.env.pluginsJS += func;
+		};
+
 		//PLUGINS
 		let workerPlugins     = JSON.parse(process.env.workerPlugins),
 			cacheModificators = [];
@@ -460,10 +475,10 @@ module.exports = customSettings=>{
 		for (let plugin of workerPlugins) {
 			let p = require(plugin);
 			if (p.medullaWorker) {
-				let io = {getRequires}; p.medullaWorker(io, settings);
+				let io = {settings, toClient, getRequires};
+				p.medullaWorker(io);
 				if (io.cacheModificator) cacheModificators.push(io.cacheModificator);
 			}
-			//if (p.medullaPlugin.workerInit) p.medullaPlugin.workerInit(addToWatchedFiles);
 		}
 
 		//TOOLS
@@ -527,10 +542,11 @@ module.exports = customSettings=>{
 					delete cache[msg.url];
 				}
 			}
+			//else if (msg.type === 'updateClient') process.env.pluginsJS = msg.content;
 			else if (msg.type === 'end') process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
 		});
 
-		/*medulla.indexName = process.env.indexName;
+		/*
 		medulla.restart = (indexName = global.medulla.indexName)=>{
 			global.medulla.indexName = indexName;
 			process.send({type:'restart', indexName: global.medulla.indexName});
@@ -550,25 +566,14 @@ module.exports = customSettings=>{
 			process.exit(1);
 		}
 
-		/*if (mm.settings) {
-			let keys = Object.keys(mm.settings);
-			for (let key of keys) settings[key] = mm.settings[key];
-
-			if (settings.mimeTypes) settings.mimeTypes = require(settings.mimeTypes);
-		}*/
-
 		if (mm.mimeTypes) {
 			let ks = Object.keys(mm.mimeTypes);
 			for (let k of ks) mimeTypes[k] = mm.mimeTypes[k];
 		}
 
-		/*if (mm.publicAccess) {
-			fileAccess = mm.publicAccess;
-		}*/
-
 		const accessToFile = url=>{
-			let ext = mod_path.extname(url);
-			let dir = mod_path.dirname(url);
+			let ext      = mod_path.extname(url);
+			let dir      = mod_path.dirname(url);
 			let filename = mod_path.basename(url, ext);
 
 			let tpaths = Object.keys(mm.publicAccess || {});
@@ -576,7 +581,8 @@ module.exports = customSettings=>{
 			for (let tpath of tpaths) {
 				let turl = mm.publicAccess[tpath];
 				let rurl = turl.replace('~', dir+'/').replace('*', filename).replace('?', ext);
-				if (rurl === url) {
+
+				if (mod_path.resolve(rurl) === mod_path.resolve(url)) {
 					let rpath = process.cwd() + '/' + tpath.replace('~', dir+'/').replace('*', filename).replace('?', ext);
 					try { return fs.readFileSync(rpath); } catch(err) {if (err.code === 'ENOENT') {}}
 				}
@@ -586,8 +592,6 @@ module.exports = customSettings=>{
 		};
 
 		if (mm.watchedFiles) {
-			//if (global.medulla.indexName) mm.watchedFiles = mm.watchedFiles[global.medulla.indexName];
-
 			let fileIndexFiles = Object.keys(mm.watchedFiles);
 			for (let filepath of fileIndexFiles) {
 				let params = mm.watchedFiles[filepath];
