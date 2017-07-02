@@ -1,7 +1,7 @@
 {
   "name": "medulla",
-  "version": "0.5.3",
-  "description": "node.js multithreaded server with proxy",
+  "version": "0.6.0",
+  "description": "node.js multithreaded server with caching files, hot page/script/styles reload plugin and proxy mode",
   "main": "index.es6",
   "dependencies": {},
   "devDependencies": {},
@@ -9,7 +9,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "server", "multithreaded", "proxy"
+    "server", "multithreaded", "files caching", "proxy"
   ],
   "author": "Artem Varshavin",
   "license": "MIT",

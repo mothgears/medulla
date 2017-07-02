@@ -4,12 +4,3 @@ body {
     font-weight: bold;
     text-align: center;
 }
-
-.testDiv {
-    background: #fff;
-    width: 300px;
-    height: 80px;
-    position: absolute;
-    left: 50%;
-    margin-left: -150px;
-}

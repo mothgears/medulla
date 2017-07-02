@@ -1,5 +1,5 @@
 (()=>{
-	const h = it=>`Hello ${it}!`;
+	const h = it=>`Hello D ${it}!`;
 
 	//SERVER SIDE CODE
 	if (typeof global === 'object' && global) {

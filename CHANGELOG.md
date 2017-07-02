@@ -1,13 +1,27 @@
 # Changelog
 
+## V 0.6.0 (dev)
+##### Improvements
+- now `watchedFiles` handles adding/removing files and folders
+- added support "one-line" hosts notation: `"Home-pc, debian": {logging: {level: 'warning'}}`
+
+##### Fixes
+- fixed incorrect file removing handling when used some IDE/OS
+- now arrays in medulla settings is merging (when merged default/host/platform settings)
+
 ## V 0.5.3
-- fixed bug with incorrect handling "`~`" symbol in templates of `publicAccess`
+##### Changes
 - plugins api: `settings` argument moved to `io` argument
 
+##### Fixes
+- fixed bug with incorrect handling "`~`" symbol in templates of `publicAccess`
+
 ## V 0.5.2
+##### Fixes
 - removing watched files from disk now is handled
 
 ## V 0.5.1
+##### Improvements
 - added "as" information to "index add" info
 - to plugins API added method `toClient`
 
@@ -17,7 +31,7 @@
 
 ## V 0.4.0
 ##### Changes
-- **(!)** watchedList / publicAccess: `src` and `url` are reversed (src param removed, url param added)
+- **(!)** watchedFiles / publicAccess: `src` and `url` are reversed (src param removed, url param added)
 
 ##### Improvements
 - modified plugins api, added `cacheModificator`

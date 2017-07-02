@@ -2,12 +2,14 @@
 `medulla` is a simple, no-dependency node.js server.
 
 ## Features
-- The server use several workers for multithreaded request handling.
-- Do no need "demonizers", set [flag](#list-of-all-settings-with-default-values) `watch:true` 
-and server will do restart workers when detect changes in modules, 
+- The server use several workers for **multithreaded** request handling.
+- **Caches files** from `watchedFiles` list (use for scripts, styles, texts etc.)
+- **Do no need "demonizers" and manually restarting**, set [flag](#list-of-all-settings-with-default-values) `watch:true` 
+and server will do restart workers when detect changes in app modules, 
 and update cache when changed scripts (files with [prop](#main-module) `type:cached`).
-- Can work as a proxy server and forwarding requests to the specified domain.
-- Supports the logging to files for commands `console.log()`, `consol.warn()`, `console.error()`.
+- Can work as a **proxy server** and forwarding requests to the specified domain.
+- Supports the **logging to files** for commands `console.log()`, `consol.warn()`, `console.error()`.
+- Has [plugin](https://www.npmjs.com/package/medulla-hotcode) fot **hot reload css-slyles, js-scripts, and auto refreshing page** even as proxy (external dev-server mode).
 
 **(!)** *module in development, this is unstable version with incomplete functional.*  
 If you found bugs or you have suggestions for improvement, please feel free to submit them to e-mail:
@@ -38,6 +40,8 @@ require('medulla')({
     }
 });
 ```
+**(!)** *if you change this file, you need restart medulla.*  
+
 
 #### List of all settings with default values
 - `serverApp: "./app.js"`  
@@ -103,7 +107,7 @@ File name
 File extension
 
 
-Also add `watchedFiles` list (files must exist on server), these files will be watched by server:
+Also add `watchedFiles` list (files must exist on server), these files will be watched by server if `watch: true`:
 ```es6
 //myApp.js
 
@@ -118,8 +122,8 @@ module.exports.watchedFiles = {
     "bin/client-script.es6" : {type:"cached", url:"client-script.es6"}
 };
 ```
-**(!)** *unlike a `publicAccess` list, this list is not filters or directories, just files, therefore adding new files on server will not handled without restarting medulla (or without modules code changing in `watch: true` mode).*  
 **(!)** *don't add modules to watchedFiles, required modules added automatically.*
+**(!)** *this list is creating watchers, therefore on some OS, directories which contain this files/folders may be blocked for rename or delete till template target-files/folders will not be removed from `watchedFiles` list or from disk.*  
 
 - `type:"cached"`  
 *(Default value)*  

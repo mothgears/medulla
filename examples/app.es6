@@ -26,6 +26,8 @@ module.exports = {
 			<html>
 				<head>
 					<link href="styles/main.css" rel="stylesheet">
+					<link href="styles/oppa.css" rel="stylesheet">
+					<link href="styles/style2.css" rel="stylesheet">
 					<script src="client-script.es6"></script>
 					<script src="hello.js"></script>
 					<script src="ms.js"></script>

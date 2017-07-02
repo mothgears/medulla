@@ -24,6 +24,10 @@ module.exports = customSettings=>{
 		forcewatch        : false,
 		plugins           : {'./mod-ws.es6':{}},
 		watch             : true,
+		watchIgnore       : [
+			()=>f.endsWith('___jb_tmp___'),
+			()=>f.endsWith('___jb_old___')
+		],
 		devMode           : process.argv.indexOf('-dev') >= 0,
 		proxyCookieDomain : 'localhost',
 		devPlugins        : {},
@@ -44,8 +48,16 @@ module.exports = customSettings=>{
 		for (let key of keys) {
 			let s = settings[key];
 			if (typeof s === 'object') {
-				let ks = Object.keys(mergedSettings[key]);
-				for (let k of ks) settings[key][k] = mergedSettings[key][k];
+				let ms = mergedSettings[key];
+				if (Array.isArray(s)) {
+					for (let el of ms) {
+						if (settings[key].indexOf(el) < 0)
+							settings[key].push(el);
+					}
+				} else {
+					let ks = Object.keys(ms);
+					for (let k of ks) settings[key][k] = ms[k];
+				}
 			}
 			else settings[key] = mergedSettings[key];
 		}
@@ -58,6 +70,14 @@ module.exports = customSettings=>{
 	if (platformSettings) mergeSettings(platformSettings);
 	delete settings.platforms;
 
+	let separatedHosts = {};
+	for (let h of Object.keys(settings.hosts)) {
+		if (h.indexOf(', ') >= 0) {
+			let shs = h.split(', ');
+			for (let sh of shs) separatedHosts[sh] = settings.hosts[h];
+		} else separatedHosts[h] = settings.hosts[h];
+	}
+	settings.hosts = separatedHosts;
 	let hostSettings = settings.hosts[os.hostname()];
 	if (hostSettings) mergeSettings(hostSettings);
 	delete settings.hosts;
@@ -144,12 +164,12 @@ module.exports = customSettings=>{
 	pluginIndex.sort();
 
 	//PLUGINS
-	/*for (let pid of pluginIndex) {
+	for (let pid of pluginIndex) {
 		let plugin = pluginsByPriority[pid];
 		let p = require(plugin);
 		let io = {settings};
 		if (p.medullaGlobal) p.medullaGlobal(io);
-	}*/
+	}
 
 	//MASTER
 	if (cluster.isMaster) {
@@ -179,7 +199,8 @@ module.exports = customSettings=>{
 			onRestartEnd = [],
 			error = null,
 			lauched = 0,
-			exits = 0;
+			exits = 0,
+			templates = [];
 
 		const toClient = func=>{
 			if (typeof func === 'function') {
@@ -206,9 +227,14 @@ module.exports = customSettings=>{
 		}
 		pluginsJS = 'window.medulla = {settings:'+JSON.stringify(settings)+'};'+pluginsJS;
 
+		process.on('uncaughtException', err=>{
+			if (err.code === 'EPERM' && err.syscall === 'Error watching file for changes:') {
+				console.warn('REMOVING FOLDER');
+			} else throw err;
+		});
+
 		const startServer = msg=>{
 			console.log(msg);
-
 			console.info('indexing...');
 
 			//INDEXING FLAG
@@ -227,7 +253,6 @@ module.exports = customSettings=>{
 					workerPlugins:JSON.stringify(workerPlugins),
 					mainWorker: (i+1 === threads)?'1':'0'
 				};
-				//if (indexName) pars['indexName'] = indexName;
 				cluster.fork(pars).on('message', _handle);
 			}
 		};
@@ -239,7 +264,9 @@ module.exports = customSettings=>{
 				if (Object.keys(cluster.workers).length > 0) {
 					//STOP ALL WORKERS
 					let keys = Object.keys(cluster.workers);
-					for (let key of keys) cluster.workers[key].send({type: 'end', exitcode: '3'});
+					for (let key of keys) try {
+						cluster.workers[key].send({type: 'end', exitcode: '3'});
+					} catch(e){}
 				} else startServer('workers restarted');
 				ordersToStart = 0;
 			}
@@ -266,11 +293,37 @@ module.exports = customSettings=>{
 			return true;
 		};
 
+		const fileIsUponTemplate = path =>{
+			path = mod_path.resolve(path);
+			let ext      = mod_path.extname(path);
+			let dir      = mod_path.dirname(path);
+			let filename = mod_path.basename(path, ext);
+
+			for (let tpath of templates) {
+				if (tpath.indexOf('~') >= 0) {
+					let xpath = mod_path.resolve(tpath).split('~');
+					xpath[0] = xpath[0].slice(0, -1);
+					if (!xpath[0] || dir.startsWith(xpath[0])) {
+						xpath[1] = xpath[1].replace('*', filename).replace('?', ext);
+						let xext      = mod_path.extname(xpath[1]);
+						let xfilename = mod_path.basename(xpath[1], xext);
+						if (xext === ext && xfilename === filename) return true;
+					}
+				} else {
+					let xpath = mod_path.resolve(tpath).replace('~', dir+'/').replace('*', filename).replace('?', ext);
+					if (xpath === path) return true;
+				}
+			}
+
+			return false;
+		};
+
 		function _handle (msg) {
 			//UPDATE WATCHERS AFTER START WORKERS
 			if (msg.type === 'update_watchers') {
 				//clearInterval(indexing);
 				let fileIndex = JSON.parse(msg.fileIndex);
+				templates = JSON.parse(msg.templates);
 
 				let keys = Object.keys(watchers);
 				for (let fid of keys) {
@@ -291,10 +344,8 @@ module.exports = customSettings=>{
 						console.info(`index add "${filepath}"` + (fileparam.url?` as "${fileparam.url}"`:''));
 
 						if (fileparam.module) {
-							let onFileChange = eventType => {
+							let onFileChange = (eventType) => {
 								if (eventType === 'change') {
-									//console.info('modified ' + fid);
-
 									//RESTART OR WISH TO RESTART
 									ordersToStart = 0;
 									for (let h of handlersModify) h(filepath, fileparam, restartServer);
@@ -311,46 +362,75 @@ module.exports = customSettings=>{
 							watchers[filepath] = fs.watch(filepath, {}, onFileChange);
 							watchers[filepath].fileparam = fileparam;
 
-						} else {
-							let onFileChange = eventType => {
-								//console.info(eventType + ':' + filepath);
-								if (!fs.existsSync(filepath)) {
-									watchers[filepath].close();
-									delete watchers[filepath];
+						} else if (fileparam.params.type === 'folder') {
+							let onFolderChange = (eventType, f) => {
+								for (let ign of settings.watchIgnore) if (ign(f)) return;
+								let path = mod_path.resolve(filepath, f);
 
+								//let exist = fs.existsSync(mod_path.resolve(filepath, f));
+								//console.info(path + ' [' + eventType + '] '
+								//	+ (exist?'Y':'N') + '{'+watchers[path]+'}');
+
+								if (eventType === 'rename') {
+									const testFile = type=>{
+										setTimeout(()=>{//TEST
+											//console.info('TEST:'+type);
+											fs.stat(path, function(err, stats) {
+												let re = false;
+												//console.info('tested!');
+												if (type === 'added' && !err) {
+													if (stats.isDirectory() || fileIsUponTemplate(path)) {
+														console.info(type+': '+path);
+														re = true;
+													}
+												} else if (type === 'removed' && err) {
+													console.info(type+': '+path); re = true;
+												}
+
+												if (re) {
+													ordersToStart = 0;
+													for (let h of handlersModify) h(filepath, fileparam, restartServer);
+													restartServer();
+												}
+											});
+										}, 250);
+									};
+
+									if (!watchers[path]) testFile('added');
+									else                 testFile('removed');
+								}
+							};
+							watchers[filepath] = fs.watch(filepath, {}, onFolderChange);
+							watchers[filepath].fileparam = fileparam;
+
+						} else {
+							let onFileChange = eventType=>{
+								if (eventType === 'change') {
+									//UPDATE ALL WORKERS
 									if (fileparam.params.type === 'cached') {
 										let keys = Object.keys(cluster.workers);
-										for (let key of keys) cluster.workers[key].send({
-											type: 'updateCache',
-											url : fileparam.params.url || filepath
-										});
-									}
-									for (let h of handlersModify) h(filepath, fileparam);
-								} else {
-									if (eventType === 'change') {
-										//console.info('modified ' + fid);
-										//UPDATE ALL WORKERS
-										if (fileparam.params.type === 'cached') {
-											let keys = Object.keys(cluster.workers);
-											for (let key of keys) cluster.workers[key].send({
+
+										for (let key of keys) try {
+											cluster.workers[key].send({
 												type   : 'updateCache',
 												url    : fileparam.params.url || filepath,
 												path   : filepath,
 												isPage : fileparam.params.isPage
 											});
-										}
-										for (let h of handlersModify) h(filepath, fileparam);
+										} catch(e){}
+									}
 
-										//FORCEWATCH
-										if (settings.forcewatch && watchers[filepath].noWatch) {
-											watchers[filepath].close();
-											watchers[filepath] = fs.watch(/*fileparam.params.src || */filepath, {}, onFileChange);
-											watchers[filepath].fileparam = fileparam;
-										}
-									} else if (settings.forcewatch) watchers[filepath].noWatch = true;
-								}
+									for (let h of handlersModify) h(filepath, fileparam);
+
+									//FORCEWATCH
+									if (settings.forcewatch && watchers[filepath].noWatch) {
+										watchers[filepath].close();
+										watchers[filepath] = fs.watch(filepath, {}, onFileChange);
+										watchers[filepath].fileparam = fileparam;
+									}
+								} else if (settings.forcewatch) watchers[filepath].noWatch = true;
 							};
-							watchers[filepath] = fs.watch(/*fileparam.params.src || */filepath, {}, onFileChange);
+							watchers[filepath] = fs.watch(filepath, {}, onFileChange);
 							watchers[filepath].fileparam = fileparam;
 						}
 					}
@@ -431,46 +511,25 @@ module.exports = customSettings=>{
 		let handlerRequest = null,
 			watchedFiles   = {},
 			cache          = {},
-			//fileAccess     = {},
-			files          = {};
-
-		const addToWatchedFiles = (filepath, params, code = null) =>{
-			watchedFiles[filepath] = {
-				module : Boolean(code),
-				params : (params ? params : {}),
-				url    : (params ? params.url : null),
-				mimeType : mimeTypes[mod_path.extname(filepath).slice(1)]
-			};
-
-			if (params) {
-				if      (params.type === 'file') files[params.url || filepath] = {
-					srcPath: /*params.src || */filepath,
-					isPage : params.isPage
-				};
-				else if (params.type === 'cached') {
-					let content = code || fs.readFileSync(/*params.src || */filepath, 'utf8');
-					for (let cm of cacheModificators) content = cm(content, /*params.src || */filepath, params.url || filepath);
-					if (typeof content === 'string') cache[params.url || filepath] = {
-						content: content,
-						srcPath: /*params.src || */filepath,
-						isPage : params.isPage
-					};
-				}
-			}
-		};
+			files          = {},
+			templates      = [],
+			clientHTML     = '';
 
 		//TO CLIENT
 		const toClient = func=>{
 			if (typeof func === 'function') {
 				let body = func.toString();
 				body = body.slice(body.indexOf("{") + 1, body.lastIndexOf("}"));
-		 		process.env.pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
-			} else process.env.pluginsJS += func;
+				process.env.pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
+			}
+			else if (func[0] === '<') clientHTML += func;
+			else process.env.pluginsJS += func;
 		};
 
 		//PLUGINS
-		let workerPlugins     = JSON.parse(process.env.workerPlugins),
-			cacheModificators = [];
+		let workerPlugins = JSON.parse(process.env.workerPlugins),
+			cacheModificators = [],
+			handlersCacheModify= [];
 
 		for (let plugin of workerPlugins) {
 			let p = require(plugin);
@@ -478,6 +537,7 @@ module.exports = customSettings=>{
 				let io = {settings, toClient, getRequires};
 				p.medullaWorker(io);
 				if (io.cacheModificator) cacheModificators.push(io.cacheModificator);
+				if (io.onCacheModify)    handlersCacheModify.push(io.onCacheModify);
 			}
 		}
 
@@ -506,7 +566,7 @@ module.exports = customSettings=>{
 			return undefined;
 		};
 
-		//REQUIRE
+		//CROSSEND-REQUIRE
 		let modulesParams = {};
 		medulla.require = (mdl, clientSide = null)=>{
 			let dir = mod_path.dirname(getCallerFile());
@@ -541,18 +601,14 @@ module.exports = customSettings=>{
 				} else {
 					delete cache[msg.url];
 				}
+				for (let h of handlersCacheModify) h();
 			}
 			//else if (msg.type === 'updateClient') process.env.pluginsJS = msg.content;
 			else if (msg.type === 'end') process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
 		});
 
-		/*
-		medulla.restart = (indexName = global.medulla.indexName)=>{
-			global.medulla.indexName = indexName;
-			process.send({type:'restart', indexName: global.medulla.indexName});
-		};*/
-
-		//REQUIRE MAIN MODULE
+		//REQUIRE MAIN MODULE AND CREATE WATCHED FILES INDEX
+		//--------------------------------------------------------------------------------------------------------------
 		let mm = {};
 
 		try {
@@ -591,15 +647,44 @@ module.exports = customSettings=>{
 			return null;
 		};
 
+		const addToWatchedFiles = (filepath, params, code = null) =>{
+			filepath = mod_path.resolve(filepath);
+
+			watchedFiles[filepath] = {
+				module : Boolean(code),
+				params : (params ? params : {}),
+				url    : (params ? params.url : null),
+				mimeType : mimeTypes[mod_path.extname(filepath).slice(1)]
+			};
+
+			if (params) {
+				if      (params.type === 'file') files[params.url || filepath] = {
+					srcPath: filepath,
+					isPage : params.isPage
+				};
+				else if (params.type === 'cached') {
+					let content = code || fs.readFileSync(filepath, 'utf8');
+					for (let cm of cacheModificators) content = cm(content, filepath, params.url || filepath);
+					if (typeof content === 'string') cache[params.url || filepath] = {
+						content: content,
+						srcPath: filepath,
+						isPage : params.isPage
+					};
+				}
+			}
+		};
+
 		if (mm.watchedFiles) {
 			let fileIndexFiles = Object.keys(mm.watchedFiles);
 			for (let filepath of fileIndexFiles) {
+				templates.push(filepath);
 				let params = mm.watchedFiles[filepath];
 
 				params.type = params.type || 'cached';
 
-				if (filepath.search(/[*?~]/g) >= 0) { //TEMPLATE PROCESSING
-					let pathTo = filepath;//(/*params.src || */filepath);
+				//TEMPLATE PROCESSING
+				if (filepath.search(/[*?~]/g) >= 0) {
+					let pathTo = filepath;
 
 					let ext = null;
 					if (pathTo.endsWith('?')) pathTo = pathTo.slice(0, -1);
@@ -611,6 +696,27 @@ module.exports = customSettings=>{
 						fln = fln.slice(1);
 					}
 					if (fln.indexOf('*') >= 0) fln = null;
+
+					//DIR TO WATCHED INDEX
+					dir = mod_path.resolve(dir);
+
+					const dirToWatch = dir=>{
+						if (!watchedFiles[dir]) {
+							watchedFiles[dir] = {
+								module : false,
+								params : {type:'folder'}
+							};
+							let files = fs.readdirSync(dir);
+							files.forEach(dirname => {
+								let path = mod_path.resolve(dir, dirname);
+								let stat = fs.statSync(path);
+								if (stat && stat.isDirectory()) {
+									if (recursive) dirToWatch(path);
+								}
+							});
+						}
+					};
+					dirToWatch(dir);
 
 					const processDir = (dir, sdir='')=>{
 						let files = fs.readdirSync(dir);
@@ -672,13 +778,18 @@ module.exports = customSettings=>{
 		let staticModules = Object.keys(require.cache);
 		for (let filepath of staticModules) installModule(filepath);
 
-		//SEND FILEINDEX TO MASTER (ONLY ONE WORKER)
-		if (settings.watch && process.env.mainWorker === '1') console.info('indexing...');
+		//SEND WATCHED FILES INDEX TO MASTER (ONLY FIRST WORKER)
 		if (settings.watch && process.env.mainWorker === '1') process.send({
 			type:'update_watchers',
-			fileIndex: JSON.stringify(watchedFiles)
+			fileIndex: JSON.stringify(watchedFiles),
+			templates: JSON.stringify(templates)
 		});
 
+		for (let h of handlersCacheModify) h();
+
+		//SERVER LAUNCH
+		//--------------------------------------------------------------------------------------------------------------
+		//UTILS
 		const rewriteCookieDomain = (header, config)=>{
 			if (Array.isArray(header)) {
 				return header.map(function (headerElement) {
@@ -730,7 +841,7 @@ module.exports = customSettings=>{
 			return 'text/html';
 		};
 
-		//SERVER
+		//LAUNCH
 		mod_http.createServer((request, response)=>{
 			let wait = false;
 
@@ -750,12 +861,16 @@ module.exports = customSettings=>{
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.write(cache[path].content);
-				if (cache[path].isPage) response.write(`<script>${process.env.pluginsJS}</script>`);
+				if (cache[path].isPage) {
+					response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+				}
 			} else if (files[path]) {
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.write(fs.readFileSync(files[path].srcPath));
-				if (files[path].isPage) response.write(`<script>${process.env.pluginsJS}</script>`);
+				if (files[path].isPage) {
+					response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+				}
 			} else if (cnt = accessToFile(path)) {
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
@@ -768,7 +883,9 @@ module.exports = customSettings=>{
 						response.write('404 Not Found');
 						response.write(`<script>${process.env.pluginsJS}</script>`);
 					}
-					else if (result === 1) response.write(`<script>${process.env.pluginsJS}</script>`);
+					else if (result === 1) {
+						response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+					}
 					else if (typeof result === 'object') {
 						wait = true;
 
@@ -790,7 +907,7 @@ module.exports = customSettings=>{
 									targetResponse.headers['content-type'] &&
 									targetResponse.headers['content-type'].substr(0,9) === 'text/html'
 								),
-								b = Buffer.from(`<script>${process.env.pluginsJS}</script>`, 'utf8'),
+								b = Buffer.from(clientHTML+`<script>${process.env.pluginsJS}</script>`, 'utf8'),
 								body = [];
 
 							targetResponse.on('data', chunk=>{
