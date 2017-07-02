@@ -122,7 +122,7 @@ module.exports.watchedFiles = {
     "bin/client-script.es6" : {type:"cached", url:"client-script.es6"}
 };
 ```
-**(!)** *don't add modules to watchedFiles, required modules added automatically.*
+**(!)** *don't add modules to watchedFiles, required modules added automatically.*  
 **(!)** *this list is creating watchers, therefore on some OS, directories which contain this files/folders may be blocked for rename or delete till template target-files/folders will not be removed from `watchedFiles` list or from disk.*  
 
 - `type:"cached"`  
