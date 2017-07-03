@@ -590,18 +590,35 @@ module.exports = customSettings=>{
 		//MESSAGE HANDLER
 		process.on('message', function(msg) {
 			if (msg.type === 'updateCache') {
+				//let cache_trying = 5;
 				if (msg.path) {
-					let content = fs.readFileSync(msg.path, 'utf8');
+					//cache_trying--;
+					const cacheFromFile = ()=>{
+						fs.readFile(msg.path, 'utf8', (err, content)=>{
+							if (!err) {
+								for (let cm of cacheModificators) content = cm(content, msg.path, msg.url);
+								if (typeof content === 'string') cache[msg.url] = {
+									content: content,
+									srcPath: msg.path,
+									isPage : msg.isPage
+								};
+								for (let h of handlersCacheModify) h();
+							} else setTimeout(cacheFromFile(), 250);
+						});
+					};
+					cacheFromFile();
+
+					/*let content = fs.readFileSync(msg.path, 'utf8');
 					for (let cm of cacheModificators) content = cm(content, msg.path, msg.url);
 					if (typeof content === 'string') cache[msg.url] = {
 						content: content,
 						srcPath: msg.path,
 						isPage : msg.isPage
-					};
+					};*/
 				} else {
 					delete cache[msg.url];
+					for (let h of handlersCacheModify) h();
 				}
-				for (let h of handlersCacheModify) h();
 			}
 			//else if (msg.type === 'updateClient') process.env.pluginsJS = msg.content;
 			else if (msg.type === 'end') process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
