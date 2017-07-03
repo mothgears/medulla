@@ -25,8 +25,8 @@ module.exports = customSettings=>{
 		plugins           : {'./mod-ws.es6':{}},
 		watch             : true,
 		watchIgnore       : [
-			()=>f.endsWith('___jb_tmp___'),
-			()=>f.endsWith('___jb_old___')
+			f=>f.endsWith('___jb_tmp___'),
+			f=>f.endsWith('___jb_old___')
 		],
 		devMode           : process.argv.indexOf('-dev') >= 0,
 		proxyCookieDomain : 'localhost',

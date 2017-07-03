@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.6.1 (dev)
+##### Fixes
+- incorrect default `watchIgnore` functions
+
 ## V 0.6.0 (dev)
 ##### Improvements
 - now `watchedFiles` handles adding/removing files and folders

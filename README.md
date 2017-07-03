@@ -57,7 +57,7 @@ Server port.
 If set "true", the server watch for files from watchedFiles and automatically update the cache each time it changes.
 
 - `forcewatch: false`  
-Set true if "fs.watch" don't work correctly and server not reacting on file changes.
+Set true if "fs.watch" don't work correctly (with some OS/IDE) and server not reacting on file changes.
 
 - `platforms: {}`  
 Individual configs for specific platforms (process.platform) in format "platform_name" : {"setting":"value"}.
@@ -85,6 +85,9 @@ Async logging to file for "console.log()", "console.warn()" and "console.error()
   directory for .log files.
   - `separatedTypes: false`  
   split log into several files by level.
+  
+- `watchIgnore: {f=>f.endsWith('___jb_tmp___'), f=>f.endsWith('___jb_old___')}`
+Rules for ignoring files when watching
 
 #### Main module
 Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list:
