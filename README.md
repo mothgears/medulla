@@ -86,8 +86,9 @@ Async logging to file for "console.log()", "console.warn()" and "console.error()
   - `separatedTypes: false`  
   split log into several files by level.
   
-- `watchIgnore: {f=>f.endsWith('___jb_tmp___'), f=>f.endsWith('___jb_old___')}`
-Rules for ignoring files when watching
+- `watchIgnore: {f=>f.endsWith('___jb_tmp___'), f=>f.endsWith('___jb_old___')}`  
+Rules for ignoring files when watching (does not apply to `required` modules)  
+Example: `(path) => return true if need ignore this file or directory`
 
 #### Main module
 Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list:
