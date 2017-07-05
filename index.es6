@@ -364,8 +364,8 @@ module.exports = customSettings=>{
 
 						} else if (fileparam.params.type === 'folder') {
 							let onFolderChange = (eventType, f) => {
-								for (let ign of settings.watchIgnore) if (ign(f)) return;
-								let path = mod_path.resolve(filepath, f);
+								let path = mod_path.resolve(filepath, f).replace(/\\/g, '/');
+								for (let ign of settings.watchIgnore) if (ign(path)) return;
 
 								//let exist = fs.existsSync(mod_path.resolve(filepath, f));
 								//console.info(path + ' [' + eventType + '] '
@@ -384,7 +384,8 @@ module.exports = customSettings=>{
 														re = true;
 													}
 												} else if (type === 'removed' && err) {
-													console.info(type+': '+path); re = true;
+													console.info(type+': '+path);
+													re = true;
 												}
 
 												if (re) {
@@ -590,31 +591,30 @@ module.exports = customSettings=>{
 		//MESSAGE HANDLER
 		process.on('message', function(msg) {
 			if (msg.type === 'updateCache') {
-				//let cache_trying = 5;
 				if (msg.path) {
-					//cache_trying--;
+					let cache_trying = 5;
 					const cacheFromFile = ()=>{
 						fs.readFile(msg.path, 'utf8', (err, content)=>{
-							if (!err) {
-								for (let cm of cacheModificators) content = cm(content, msg.path, msg.url);
-								if (typeof content === 'string') cache[msg.url] = {
-									content: content,
-									srcPath: msg.path,
-									isPage : msg.isPage
-								};
-								for (let h of handlersCacheModify) h();
-							} else setTimeout(cacheFromFile(), 250);
+							if (err) {
+								cache_trying--;
+								if (cache_trying > 0) setTimeout(cacheFromFile, 100);
+								else {
+									delete cache[msg.url];
+									for (let h of handlersCacheModify) h();
+								}
+								return;
+							}
+
+							for (let cm of cacheModificators) content = cm(content, msg.path, msg.url);
+							if (typeof content === 'string') cache[msg.url] = {
+								content: content,
+								srcPath: msg.path,
+								isPage : msg.isPage
+							};
+							for (let h of handlersCacheModify) h();
 						});
 					};
 					cacheFromFile();
-
-					/*let content = fs.readFileSync(msg.path, 'utf8');
-					for (let cm of cacheModificators) content = cm(content, msg.path, msg.url);
-					if (typeof content === 'string') cache[msg.url] = {
-						content: content,
-						srcPath: msg.path,
-						isPage : msg.isPage
-					};*/
 				} else {
 					delete cache[msg.url];
 					for (let h of handlersCacheModify) h();
@@ -665,7 +665,11 @@ module.exports = customSettings=>{
 		};
 
 		const addToWatchedFiles = (filepath, params, code = null) =>{
-			filepath = mod_path.resolve(filepath);
+			filepath = mod_path.resolve(filepath).replace(/\\/g, '/');
+
+			//IGNORING
+			if (!code) for (let ign of settings.watchIgnore) if (ign(filepath)) return;
+			//------
 
 			watchedFiles[filepath] = {
 				module : Boolean(code),
@@ -691,16 +695,18 @@ module.exports = customSettings=>{
 			}
 		};
 
+		//for (let ign of settings.watchIgnore) console.info(ign.toString());
+
 		if (mm.watchedFiles) {
 			let fileIndexFiles = Object.keys(mm.watchedFiles);
 			for (let filepath of fileIndexFiles) {
-				templates.push(filepath);
 				let params = mm.watchedFiles[filepath];
-
 				params.type = params.type || 'cached';
 
 				//TEMPLATE PROCESSING
 				if (filepath.search(/[*?~]/g) >= 0) {
+					templates.push(filepath);
+
 					let pathTo = filepath;
 
 					let ext = null;
@@ -718,6 +724,8 @@ module.exports = customSettings=>{
 					dir = mod_path.resolve(dir);
 
 					const dirToWatch = dir=>{
+						for (let ign of settings.watchIgnore) if (ign(dir)) return;
+
 						if (!watchedFiles[dir]) {
 							watchedFiles[dir] = {
 								module : false,

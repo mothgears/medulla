@@ -1,5 +1,12 @@
 # Changelog
 
+## V 0.6.2 (dev)
+##### Improvements
+- now `watchIgnore` apply to folders and when files adding to index
+
+##### Fixes 
+- fixed bug with icorrect cache update
+
 ## V 0.6.1 (dev)
 ##### Fixes
 - incorrect default `watchIgnore` functions
