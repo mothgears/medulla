@@ -1,16 +1,19 @@
 const ms = medulla.require('./scripts/multiscript.es6', {url:'ms.js', type:'cached'});
 
 module.exports = {
+
+	//Files with public access from web
 	publicAccess: {
-		'public/~*?'   : '~*?',  //all files from directory
-		'images/*.png' : 'pic/*.png',//,//add .png files directly from directory
-		'readme.txt'   : 'readme.txt'   //concrete file
+		'public/~*?'   : '~*?',        //all files from directory
+		'images/*.png' : 'pic/*.png',  //add .png files directly from directory
+		'readme.txt'   : 'readme.txt'  //concrete file
 	},
+
 
 	watchedFiles: {
 		"scripts/~*.js"             : {url:"~*.js", reload:'force'}, //type:"cached",
 		"scripts/client-script.es6" : {url:"client-script.es6"},
-		"styles/*.css"              : {reload:'hot'},
+		"styles/*.css"              : {reload:'hot'}, //'reload' prop for using with medulla-hotcode plugin
 		"realpage.html"             : {url:"realpage", isPage:true}
 	},
 
@@ -45,6 +48,21 @@ module.exports = {
 				</body>
 			</html>
 		`);
+
+		/*
+		//Counter test
+		//will not work correct on multithread systems, because 'global' is unique for each worker
+		global.workerVariable = global.workerVariable || 0;
+		global.workerVariable++;
+		console.info('incorrect counter of requests: ' + workerVariable);
+		*/
+
+		//will work correct on multithread systems, because 'medulla.common storage' is shared between workers
+		medulla.common(storage=>{
+			storage.sharedVariable = storage.sharedVariable || 0;
+			storage.sharedVariable++;
+			console.info('correct counter of requests: ' + storage.sharedVariable)
+		});
 
 		return 1;
 		//return 1   - for including medulla-plugins code in responce body (use with page html)

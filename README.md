@@ -1,10 +1,8 @@
 # Medulla
 `medulla` is a simple, no-dependency node.js server.
 
-**(!) *DEV VERSION.***  
-
 ## Features
-- The server use several workers for **multithreaded** request handling.
+- The server use several workers for [**multithreaded**](#common-variables) request handling.
 - **Caches files** from `watchedFiles` list (use for scripts, styles, texts etc.)
 - **Do no need "demonizers" and manually restarting**, set flag `watch:true` in configs 
 and server will do restart workers when detect changes in app modules, 
@@ -188,9 +186,24 @@ node server.js -dev
 and open the site in browser (e.g. localhost:3000)
 
 #### Common variables
-You may share variables between workers using `medulla.common` method
+You may share variables between workers using `medulla.common` method like this:
 ```es6
-/*In development*/
+
+module.exports.onRequest = (request, response)=>{
+    if (request.url !== '/') return 404;
+
+    //Counter of requests
+    medulla.common(storage=>{
+        storage.sharedVariable = storage.sharedVariable || 0;
+        storage.sharedVariable++;
+        console.info('Requests: ' + storage.sharedVariable)
+    });
+
+    response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
+    response.write('<html><body>It works!</body></html>');
+    
+    return 1; 
+};
 ```
 
 #### Console commands

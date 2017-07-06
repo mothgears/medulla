@@ -1,5 +1,12 @@
 # Changelog
 
+## V 0.6.4 (dev)
+##### Improvements
+- added warning for `watched Files` missing files
+
+##### Fixes
+- variables storage fix
+
 ## V 0.6.3 (dev)
 ##### Improvements
 - added common variables storage

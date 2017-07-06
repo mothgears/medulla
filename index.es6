@@ -454,33 +454,22 @@ module.exports = customSettings=>{
 
 			} else if(msg.type === 'get_in_line') {
 				workersQueue.push(msg.wid);
-				console.info(workersQueue);
-				console.info(workersQueue.length);
 
 				if (workersQueue.length === 1) {
-					let wid = workersQueue.pop();
-					cluster.workers[wid].send({
+					cluster.workers[msg.wid].send({
 						type: 'your_turn',
 						storage: JSON.stringify(commonStorage)
 					});
 				}
-
-				/*let keys = Object.keys(cluster.workers);
-				 for (let key of keys) try {
-				 cluster.workers[key].send({
-				 type:'common_update',
-				 propname:msg.propname,
-				 proptype:msg.proptype,
-				 value:msg.value
-				 });
-				 } catch(e){}*/
 			} else if (msg.type === 'free_control') {
 				let changes = JSON.parse(msg.changes);
 				let propnames = Object.keys(changes);
 				for (propname of propnames) commonStorage[propname] = changes[propname];
 
+				workersQueue.shift();
+
 				if (workersQueue.length >= 1) {
-					let wid = workersQueue.pop();
+					let wid = workersQueue.shift();
 					cluster.workers[wid].send({
 						type: 'your_turn',
 						storage: JSON.stringify(commonStorage)
@@ -708,6 +697,7 @@ module.exports = customSettings=>{
 					else if (prop.type === 'string'   ) _commonStorageLocal[propname] = prop.value;
 				}
 				for (procedure of _proceduresQueue) procedure(commonStorageI);
+				_proceduresQueue.length = 0;
 				process.send({type:'free_control', changes:JSON.stringify(_commonChanges)});
 			}
 		});
@@ -772,13 +762,17 @@ module.exports = customSettings=>{
 					isPage : params.isPage
 				};
 				else if (params.type === 'cached') {
-					let content = code || fs.readFileSync(filepath, 'utf8');
-					for (let cm of cacheModificators) content = cm(content, filepath, params.url || filepath);
-					if (typeof content === 'string') cache[params.url || filepath] = {
-						content: content,
-						srcPath: filepath,
-						isPage : params.isPage
-					};
+					try {
+						let content = code || fs.readFileSync(filepath, 'utf8');
+						for (let cm of cacheModificators) content = cm(content, filepath, params.url || filepath);
+						if (typeof content === 'string') cache[params.url || filepath] = {
+							content: content,
+							srcPath: filepath,
+							isPage : params.isPage
+						};
+					} catch (err) {
+						console.warn(`"${filepath}" not found`);
+					}
 				}
 			}
 		};
