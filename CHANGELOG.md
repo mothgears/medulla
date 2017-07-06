@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.6.3 (dev)
+##### Improvements
+- added common variables storage
+
 ## V 0.6.2 (dev)
 ##### Improvements
 - now `watchIgnore` apply to folders and when files adding to index

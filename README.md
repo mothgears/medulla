@@ -1,15 +1,17 @@
 # Medulla
 `medulla` is a simple, no-dependency node.js server.
 
+**(!) *DEV VERSION.***  
+
 ## Features
 - The server use several workers for **multithreaded** request handling.
 - **Caches files** from `watchedFiles` list (use for scripts, styles, texts etc.)
-- **Do no need "demonizers" and manually restarting**, set [flag](#list-of-all-settings-with-default-values) `watch:true` 
+- **Do no need "demonizers" and manually restarting**, set flag `watch:true` in configs 
 and server will do restart workers when detect changes in app modules, 
 and update cache when changed scripts (files with [prop](#main-module) `type:cached`).
 - Can work as a **proxy server** and forwarding requests to the specified domain.
 - Supports the **logging to files** for commands `console.log()`, `consol.warn()`, `console.error()`.
-- Has [plugin](https://www.npmjs.com/package/medulla-hotcode) fot **hot reload css-slyles, js-scripts, and auto refreshing page** even as proxy (external dev-server mode).
+- Has [plugin](https://www.npmjs.com/package/medulla-hotcode) for **hot reload css-slyles, js-scripts, and auto refreshing page** even as proxy (external dev-server mode).
 
 **(!)** *module in development, this is unstable version with incomplete functional.*  
 If you found bugs or you have suggestions for improvement, please feel free to submit them to e-mail:
@@ -19,7 +21,7 @@ If you found bugs or you have suggestions for improvement, please feel free to s
 As [npm](https://www.npmjs.com/package/medulla) package  
 `npm i -S medulla`
   
-As [git](https://github.com/mothgears/medulla.git) repository  
+As [git](https://github.com/mothgears/medulla.git) repository (with examples)  
 `git clone https://github.com/mothgears/medulla.git`
 
 ## Plugins
@@ -27,8 +29,8 @@ As [git](https://github.com/mothgears/medulla.git) repository
 Plugin for hot reload pages, scripts and styles directly in browser.
 
 ## Usage
-#### Entry point and config
-Create an entry point (e.g. server.js) and require medulla with some settings (for example):
+#### Server launcher and config
+Create server launcher (e.g. server.js) and require medulla with some settings (for example):
 ```es6
 //server.js
 
@@ -42,10 +44,9 @@ require('medulla')({
 ```
 **(!)** *if you change this file, you need restart medulla.*  
 
-
-#### List of all settings with default values
+List of all available settings with default values:
 - `serverApp: "./app.js"`  
-Path to your app main module.
+Path to your app entry point.
 
 - `serverDir: process.cwd()`  
 Path to app dir.
@@ -87,16 +88,16 @@ Async logging to file for "console.log()", "console.warn()" and "console.error()
   split log into several files by level.
   
 - `watchIgnore: {f=>f.endsWith('___jb_tmp___'), f=>f.endsWith('___jb_old___')}`  
-Rules for ignoring files when watching (does not apply to `required` modules)  
-Example: `(path) => return true if need ignore this file or directory`
+Rules for ignoring files when watching (does not apply to `required` modules). 
+Represents a list of functions which return true if need ignore this file or directory.
 
-#### Main module
+#### App main module (entry point)
 Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list:
 ```es6
 //myApp.js
 
 module.exports.publicAccess = {
-    //access rules in format 'src:{params}'
+    //access rules in format 'src:url'
     
     "readme.txt"      : "readme.txt",
     "public_html/~*?" : "~*?", //access to all files from "public_html" folder and subfolders
@@ -111,17 +112,17 @@ File name
 File extension
 
 
-Also add `watchedFiles` list (files must exist on server), these files will be watched by server if `watch: true`:
+Next, add `watchedFiles` list, these files will be watched by server (if medulla config `watch: true`) and cached (if file/template param `type:"cached"`):
 ```es6
 //myApp.js
 
 module.exports.watchedFiles = {
     //indexed files in format 'src:{params}'
     
-    //Templates for search
+    //set templates
     "bin/*.js" : {type:"cached", url:"scripts/*.js"}, //all js files directly from "bin" folder
     
-    //Concrete files
+    //or concrete files
     "styles/main.css"       : {type:"cached"},
     "bin/client-script.es6" : {type:"cached", url:"client-script.es6"}
 };
@@ -175,19 +176,25 @@ module.exports.onRequest = (request, response)=>{
 ```
 
 #### Start server
-For start the server run the your "entry point" script:
+For start the server run the laucher:
 ```
 node server.js
 ```
 
-or for start the server with dev plugins, launch it with parameter:
+or for start the server with dev plugins, run it with parameter:
 ```
 node server.js -dev
 ```
 and open the site in browser (e.g. localhost:3000)
 
+#### Common variables
+You may share variables between workers using `medulla.common` method
+```es6
+/*In development*/
+```
+
 #### Console commands
-  - `version` - show current module version  
+  - `version` - show module current version  
   - `stop` - shutdown server
 
 ## License

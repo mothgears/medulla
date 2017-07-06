@@ -200,7 +200,9 @@ module.exports = customSettings=>{
 			error = null,
 			lauched = 0,
 			exits = 0,
-			templates = [];
+			templates = [],
+			workersQueue = [],
+			commonStorage = {};
 
 		const toClient = func=>{
 			if (typeof func === 'function') {
@@ -229,7 +231,7 @@ module.exports = customSettings=>{
 
 		process.on('uncaughtException', err=>{
 			if (err.code === 'EPERM' && err.syscall === 'Error watching file for changes:') {
-				console.warn('REMOVING FOLDER');
+				console.warn('Removing folder.');
 			} else throw err;
 		});
 
@@ -436,6 +438,7 @@ module.exports = customSettings=>{
 						}
 					}
 				}
+
 			} else if (msg.type === 'worker_launched') {
 				lauched++;
 				if (lauched === threads) {
@@ -449,10 +452,43 @@ module.exports = customSettings=>{
 					console.info('workers launched');
 				}
 
+			} else if(msg.type === 'get_in_line') {
+				workersQueue.push(msg.wid);
+				console.info(workersQueue);
+				console.info(workersQueue.length);
+
+				if (workersQueue.length === 1) {
+					let wid = workersQueue.pop();
+					cluster.workers[wid].send({
+						type: 'your_turn',
+						storage: JSON.stringify(commonStorage)
+					});
+				}
+
+				/*let keys = Object.keys(cluster.workers);
+				 for (let key of keys) try {
+				 cluster.workers[key].send({
+				 type:'common_update',
+				 propname:msg.propname,
+				 proptype:msg.proptype,
+				 value:msg.value
+				 });
+				 } catch(e){}*/
+			} else if (msg.type === 'free_control') {
+				let changes = JSON.parse(msg.changes);
+				let propnames = Object.keys(changes);
+				for (propname of propnames) commonStorage[propname] = changes[propname];
+
+				if (workersQueue.length >= 1) {
+					let wid = workersQueue.pop();
+					cluster.workers[wid].send({
+						type: 'your_turn',
+						storage: JSON.stringify(commonStorage)
+					});
+				}
+
 			} else {
 				if (!error && msg.error) error = {value:msg.error, title:msg.title};
-
-				//if (msg.indexName) indexName = msg.indexName;
 
 				let exitcode = null;
 				if      (msg.type === 'pause'  ) exitcode = '1';
@@ -576,6 +612,43 @@ module.exports = customSettings=>{
 			return require(mdl);
 		};
 
+		//COMMON STORAGE
+		const _commonStorageLocal = {},
+		      _commonChanges      = {},
+		      _proceduresQueue    = [];
+
+		const commonStorageI = new Proxy(_commonStorageLocal,{
+			set (target, propname, value) {
+				let type = typeof value,
+				    stringValue = '';
+
+				if (value === null) type = 'null';
+				else if (type === 'undefined') {}
+				else if (type === 'object') stringValue = JSON.stringify(value);
+				else if (type === 'number') stringValue = value.toString();
+				else if (type === 'string') stringValue = value;
+				else {
+					console.warn('Incorrect common prop type.');
+					return;
+				}
+
+				_commonChanges[propname] = {type, value:stringValue};
+				target[propname] = value;
+			}/*,
+			get (target, propname) {
+				console.log('GET:' + propname);
+
+				if (!propname in target) return undefined;
+				return target[propname];
+			}*/
+		});
+
+		//COMMON
+		medulla.common = procedure=>{
+			_proceduresQueue.push(procedure);
+			process.send({type:'get_in_line', wid:cluster.worker.id});
+		};
+
 		//ERROR HANDLER
 		const errorHandle = (err, title, type)=>process.send({type, error:err.stack, title});
 		process.on('uncaughtException', err=>{
@@ -622,6 +695,21 @@ module.exports = customSettings=>{
 			}
 			//else if (msg.type === 'updateClient') process.env.pluginsJS = msg.content;
 			else if (msg.type === 'end') process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
+
+			else if (msg.type === 'your_turn') {
+				let storage = JSON.parse(msg.storage);
+				let propnames = Object.keys(storage);
+				for (propname of propnames) {
+					let prop = storage[propname];
+					if      (prop.type === 'null'     ) _commonStorageLocal[propname] = null;
+					else if (prop.type === 'undefined') delete _commonStorageLocal[propname];
+					else if (prop.type === 'object'   ) _commonStorageLocal[propname] = JSON.parse(prop.value);
+					else if (prop.type === 'number'   ) _commonStorageLocal[propname] = Number(prop.value);
+					else if (prop.type === 'string'   ) _commonStorageLocal[propname] = prop.value;
+				}
+				for (procedure of _proceduresQueue) procedure(commonStorageI);
+				process.send({type:'free_control', changes:JSON.stringify(_commonChanges)});
+			}
 		});
 
 		//REQUIRE MAIN MODULE AND CREATE WATCHED FILES INDEX
