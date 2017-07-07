@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.6.5 (dev)
+##### Fixes
+- incorrect files add/remove handling fixed
+
 ## V 0.6.4 (dev)
 ##### Improvements
 - added warning for `watched Files` missing files

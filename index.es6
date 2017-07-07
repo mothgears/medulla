@@ -202,7 +202,8 @@ module.exports = customSettings=>{
 			exits = 0,
 			templates = [],
 			workersQueue = [],
-			commonStorage = {};
+			commonStorage = {},
+			addedFiles = {};
 
 		const toClient = func=>{
 			if (typeof func === 'function') {
@@ -323,6 +324,8 @@ module.exports = customSettings=>{
 		function _handle (msg) {
 			//UPDATE WATCHERS AFTER START WORKERS
 			if (msg.type === 'update_watchers') {
+				addedFiles = {};
+
 				//clearInterval(indexing);
 				let fileIndex = JSON.parse(msg.fileIndex);
 				templates = JSON.parse(msg.templates);
@@ -378,16 +381,23 @@ module.exports = customSettings=>{
 										setTimeout(()=>{//TEST
 											//console.info('TEST:'+type);
 											fs.stat(path, function(err, stats) {
+												//console.info('STAT:'+type);
+
 												let re = false;
-												//console.info('tested!');
+
 												if (type === 'added' && !err) {
 													if (stats.isDirectory() || fileIsUponTemplate(path)) {
 														console.info(type+': '+path);
 														re = true;
+														addedFiles[path] = true;
 													}
 												} else if (type === 'removed' && err) {
 													console.info(type+': '+path);
 													re = true;
+													delete addedFiles[path];
+													watchers[path].close();
+													delete watchers[path];
+													console.info(`index rem "${path}"`);
 												}
 
 												if (re) {
@@ -399,8 +409,8 @@ module.exports = customSettings=>{
 										}, 250);
 									};
 
-									if (!watchers[path]) testFile('added');
-									else                 testFile('removed');
+									if (!watchers[path] && !addedFiles[path]) testFile('added');
+									else testFile('removed');
 								}
 							};
 							watchers[filepath] = fs.watch(filepath, {}, onFolderChange);
