@@ -395,8 +395,10 @@ module.exports = customSettings=>{
 													console.info(type+': '+path);
 													re = true;
 													delete addedFiles[path];
-													watchers[path].close();
-													delete watchers[path];
+													if (watchers[path]) {
+														watchers[path].close();
+														delete watchers[path];
+													}
 													console.info(`index rem "${path}"`);
 												}
 

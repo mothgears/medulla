@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.6.6 (dev)
+##### Fixes
+- fixed error with remove "virtual" files
+
 ## V 0.6.5 (dev)
 ##### Fixes
 - incorrect files add/remove handling fixed
