@@ -202,7 +202,7 @@ module.exports = customSettings=>{
 			exits = 0,
 			templates = [],
 			workersQueue = [],
-			commonStorage = {},
+			commonStorage = "{}",
 			addedFiles = {};
 
 		const toClient = func=>{
@@ -239,6 +239,8 @@ module.exports = customSettings=>{
 		const startServer = msg=>{
 			console.log(msg);
 			console.info('indexing...');
+
+			commonStorage = "{}";
 
 			//INDEXING FLAG
 			/*let i = 0;  // dots counter
@@ -466,25 +468,21 @@ module.exports = customSettings=>{
 
 			} else if(msg.type === 'get_in_line') {
 				workersQueue.push(msg.wid);
-
 				if (workersQueue.length === 1) {
 					cluster.workers[msg.wid].send({
 						type: 'your_turn',
-						storage: JSON.stringify(commonStorage)
+						storage: commonStorage
 					});
 				}
 			} else if (msg.type === 'free_control') {
-				let changes = JSON.parse(msg.changes);
-				let propnames = Object.keys(changes);
-				for (propname of propnames) commonStorage[propname] = changes[propname];
+				commonStorage = msg.storage;
 
 				workersQueue.shift();
-
 				if (workersQueue.length >= 1) {
 					let wid = workersQueue.shift();
 					cluster.workers[wid].send({
 						type: 'your_turn',
-						storage: JSON.stringify(commonStorage)
+						storage: msg.storage
 					});
 				}
 
@@ -614,11 +612,11 @@ module.exports = customSettings=>{
 		};
 
 		//COMMON STORAGE
-		const _commonStorageLocal = {},
-		      _commonChanges      = {},
-		      _proceduresQueue    = [];
+		let _commonStorageLocal = {},
+			//_commonChanges      = {},
+			_proceduresQueue    = [];
 
-		const commonStorageI = new Proxy(_commonStorageLocal,{
+		/*const commonStorageI = new Proxy(_commonStorageLocal,{
 			set (target, propname, value) {
 				let type = typeof value,
 				    stringValue = '';
@@ -635,14 +633,11 @@ module.exports = customSettings=>{
 
 				_commonChanges[propname] = {type, value:stringValue};
 				target[propname] = value;
-			}/*,
+			}*//*,
 			get (target, propname) {
-				console.log('GET:' + propname);
-
-				if (!propname in target) return undefined;
 				return target[propname];
-			}*/
-		});
+			}
+		});*/
 
 		//COMMON
 		medulla.common = procedure=>{
@@ -698,19 +693,12 @@ module.exports = customSettings=>{
 			else if (msg.type === 'end') process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
 
 			else if (msg.type === 'your_turn') {
-				let storage = JSON.parse(msg.storage);
-				let propnames = Object.keys(storage);
-				for (propname of propnames) {
-					let prop = storage[propname];
-					if      (prop.type === 'null'     ) _commonStorageLocal[propname] = null;
-					else if (prop.type === 'undefined') delete _commonStorageLocal[propname];
-					else if (prop.type === 'object'   ) _commonStorageLocal[propname] = JSON.parse(prop.value);
-					else if (prop.type === 'number'   ) _commonStorageLocal[propname] = Number(prop.value);
-					else if (prop.type === 'string'   ) _commonStorageLocal[propname] = prop.value;
-				}
-				for (procedure of _proceduresQueue) procedure(commonStorageI);
+				_commonStorageLocal = JSON.parse(msg.storage);
+
+				for (procedure of _proceduresQueue) procedure(_commonStorageLocal);
 				_proceduresQueue.length = 0;
-				process.send({type:'free_control', changes:JSON.stringify(_commonChanges)});
+
+				process.send({type:'free_control', storage:JSON.stringify(_commonStorageLocal)});
 			}
 		});
 
