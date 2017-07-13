@@ -1,1 +1,1 @@
-window.addEventListener('load', ()=>document.body.style.background =  '#0fe');
+window.addEventListener('load', ()=>document.body.style.background =  '#f0f0f0');

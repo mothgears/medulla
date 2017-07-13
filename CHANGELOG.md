@@ -1,42 +1,16 @@
 # Changelog
 
-## V 0.6.6 (dev)
-##### Fixes
-- fixed error with remove "virtual" files
-
-## V 0.6.5 (dev)
-##### Fixes
-- incorrect files add/remove handling fixed
-
-## V 0.6.4 (dev)
+## V 0.6.7
 ##### Improvements
 - added warning for `watched Files` missing files
-
-##### Fixes
-- variables storage fix
-
-## V 0.6.3 (dev)
-##### Improvements
 - added common variables storage
-
-## V 0.6.2 (dev)
-##### Improvements
 - now `watchIgnore` apply to folders and when files adding to index
-
-##### Fixes 
-- fixed bug with icorrect cache update
-
-## V 0.6.1 (dev)
-##### Fixes
-- incorrect default `watchIgnore` functions
-
-## V 0.6.0 (dev)
-##### Improvements
 - now `watchedFiles` handles adding/removing files and folders
 - added support "one-line" hosts notation: `"Home-pc, debian": {logging: {level: 'warning'}}`
 
 ##### Fixes
-- fixed incorrect file removing handling when used some IDE/OS
+- fixed incorrect default `watchIgnore` functions
+- fixed incorrect file remove handling when used some IDE/OS
 - now arrays in medulla settings is merging (when merged default/host/platform settings)
 
 ## V 0.5.3
