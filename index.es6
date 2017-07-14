@@ -22,7 +22,7 @@ module.exports = customSettings=>{
 		hosts             : {},
 		platforms         : {},
 		forcewatch        : false,
-		plugins           : {'./mod-ws.es6':{}},
+		plugins           : {'./mod-ws.es6':{}/*, './mod-dashboard.es6':{}*/},
 		watch             : true,
 		watchIgnore       : [
 			f=>f.endsWith('___jb_tmp___'),
@@ -172,6 +172,7 @@ module.exports = customSettings=>{
 	}
 
 	//MASTER
+	//------------------------------------------------------------------------------------------------------------------
 	if (cluster.isMaster) {
 		//COMMANDS
 		process.openStdin().addListener("data", cmd=>{
@@ -193,6 +194,7 @@ module.exports = customSettings=>{
 			handlersError    = [];
 
 		let pluginsJS = '',
+			messageHandlers = {},
 			workerPlugins = [],
 			ordersToStart = 0,
 			watchers = {},
@@ -203,7 +205,8 @@ module.exports = customSettings=>{
 			templates = [],
 			workersQueue = [],
 			commonStorage = "{}",
-			addedFiles = {};
+			addedFiles = {},
+			medullaStats = {};
 
 		const toClient = func=>{
 			if (typeof func === 'function') {
@@ -218,7 +221,13 @@ module.exports = customSettings=>{
 			let plugin = pluginsByPriority[pid];
 			let p = require(plugin);
 			if (p.medullaMaster) {
-				let io = {settings, toClient};
+				let io = {
+					settings,
+					toClient,
+					medullaStats,
+					messageHandlers,
+					cluster
+				};
 				p.medullaMaster(io);
 				if (io.onModify)   handlersModify  .push(io.onModify);
 				if (io.onLaunch)   handlersLaunch  .push(io.onLaunch);
@@ -241,16 +250,6 @@ module.exports = customSettings=>{
 			console.info('indexing...');
 
 			commonStorage = "{}";
-
-			//INDEXING FLAG
-			/*let i = 0;  // dots counter
-			indexing = setInterval(()=>{
-				process.stdout.clearLine();  // clear current text
-				process.stdout.cursorTo(0);  // move cursor to beginning of line
-				i = (i + 1) % 4;
-				let dots = new Array(i + 1).join(".");
-				process.stdout.write("indexing" + dots);  // write text
-			}, 200);*/
 
 			for (let i = 0; i < threads; i++) {
 				let pars = {
@@ -463,6 +462,7 @@ module.exports = customSettings=>{
 					}
 
 					for (let h of handlersLaunch) h();
+					medullaStats.totalWorkers = threads;
 					console.info('workers launched');
 				}
 
@@ -486,6 +486,8 @@ module.exports = customSettings=>{
 					});
 				}
 
+			} else if (messageHandlers[msg.type]) {
+				messageHandlers[msg.type](msg);
 			} else {
 				if (!error && msg.error) error = {value:msg.error, title:msg.title};
 
@@ -515,6 +517,7 @@ module.exports = customSettings=>{
 			if (exits >= threads) { //ALL WORKERS CLOSED
 				exits = 0;
 				lauched = 0;
+				medullaStats.totalWorkers = 0;
 
 				if (error) {
 					outputError(error);
@@ -549,6 +552,7 @@ module.exports = customSettings=>{
 			cache          = {},
 			files          = {},
 			templates      = [],
+			routes         = [],
 			clientHTML     = '';
 
 		//TO CLIENT
@@ -570,7 +574,12 @@ module.exports = customSettings=>{
 		for (let plugin of workerPlugins) {
 			let p = require(plugin);
 			if (p.medullaWorker) {
-				let io = {settings, toClient, getRequires};
+				let io = {
+					settings,
+					toClient,
+					getRequires,
+					routes
+				};
 				p.medullaWorker(io);
 				if (io.cacheModificator) cacheModificators.push(io.cacheModificator);
 				if (io.onCacheModify)    handlersCacheModify.push(io.onCacheModify);
@@ -658,7 +667,7 @@ module.exports = customSettings=>{
 		});
 
 		//MESSAGE HANDLER
-		process.on('message', function(msg) {
+		process.on('message', (msg)=>{
 			if (msg.type === 'updateCache') {
 				if (msg.path) {
 					let cache_trying = 5;
@@ -958,11 +967,13 @@ module.exports = customSettings=>{
 			let cnt  = null;
 
 			/*if (path === 'medulla-plugins.js') {
-				response.writeHeader(200, {"Content-Type": (mt?mt:"application/javascript")+"; charset=utf-8"});
-				response.write(process.env.pluginsJS);
-			} else*/
+			 response.writeHeader(200, {"Content-Type": (mt?mt:"application/javascript")+"; charset=utf-8"});
+			 response.write(process.env.pluginsJS);
+			 } else*/
 
-			if (cache[path]) {
+			if (routes[path]) {
+				wait = routes[path](request, response);
+			} else if (cache[path]) {
 				ext = mod_path.extname(cache[path].srcPath).slice(1);
 				mt = (ext && mimeTypes[ext]) ? mimeTypes[ext] : mt;
 				if (!mt) mt = nomt(ext);
