@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.6.8
+##### Fixes
+- added handling error with `type:file` files from `watched Files` which not exist on disk
+
 ## V 0.6.7
 ##### Improvements
 - added warning for `watched Files` missing files

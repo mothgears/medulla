@@ -242,7 +242,9 @@ module.exports = customSettings=>{
 		process.on('uncaughtException', err=>{
 			if (err.code === 'EPERM' && err.syscall === 'Error watching file for changes:') {
 				console.warn('Removing folder.');
-			} else throw err;
+			} /*else if (err.code === 'ENOENT') {
+
+			}*/ else throw err;
 		});
 
 		const startServer = msg=>{
@@ -984,10 +986,16 @@ module.exports = customSettings=>{
 				}
 			} else if (files[path]) {
 				if (!mt) mt = nomt(ext);
-				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
-				response.write(fs.readFileSync(files[path].srcPath));
-				if (files[path].isPage) {
-					response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+				try {
+					let content = fs.readFileSync(files[path].srcPath);
+					response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
+					response.write(content);
+					if (files[path].isPage) {
+						response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+					}
+				} catch (e) {
+					response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
+					response.write('ERROR: Registred file not found on server.');
 				}
 			} else if (cnt = accessToFile(path)) {
 				if (!mt) mt = nomt(ext);

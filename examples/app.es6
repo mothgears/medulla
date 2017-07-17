@@ -11,9 +11,12 @@ module.exports = {
 
 
 	watchedFiles: {
+		//Templates for watch
 		"scripts/~*.js"             : {url:"~*.js", reload:'force'}, //type:"cached",
-		"scripts/client-script.es6" : {url:"client-script.es6"},
 		"styles/*.css"              : {reload:'hot'}, //'reload' prop for using with medulla-hotcode plugin
+
+		//Concrete files (not recommended)
+		"scripts/client-script.es6" : {url:"client-script.es6"},
 		"realpage.html"             : {url:"realpage", isPage:true}
 	},
 
