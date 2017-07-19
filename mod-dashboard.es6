@@ -53,7 +53,7 @@ module.exports.medullaWorker = io=>{
 		}
 	});
 
-	io.routes['serverstat'] = (request, response)=>{
+	io.routes['dashboard'] = (request, response)=>{
 		//To Master
 		need_resp = response;
 

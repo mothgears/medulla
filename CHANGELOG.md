@@ -1,5 +1,14 @@
 # Changelog
 
+## V 0.6.9
+##### Improvements
+- reduced workload when processing watchedFiles
+
+##### Fixes
+- added handling error with `type:cached` files from `watched Files` which not exist on disk
+- fixed incorrect `watched Files` template nametest
+- now concrete files in `watched Files` is templates, it fix error with handling adding the files
+
 ## V 0.6.8
 ##### Fixes
 - added handling error with `type:file` files from `watched Files` which not exist on disk

@@ -4,20 +4,19 @@ module.exports = {
 
 	//Files with public access from web
 	publicAccess: {
-		'public/~*?'   : '~*?',        //all files from directory
+		'public/~*?'   : '~*?',        //all files from directory and subdirs
 		'images/*.png' : 'pic/*.png',  //add .png files directly from directory
 		'readme.txt'   : 'readme.txt'  //concrete file
 	},
 
-
 	watchedFiles: {
 		//Templates for watch
-		"scripts/~*.js"             : {url:"~*.js", reload:'force'}, //type:"cached",
-		"styles/*.css"              : {reload:'hot'}, //'reload' prop for using with medulla-hotcode plugin
+		"scripts/~*.js" : {url:"~*.js", reload:'force'}, //type:"cached",
+		"styles/*.css"  : {reload:'hot'}, //'reload' prop for using with medulla-hotcode plugin
+		"*.html"        : {url:"*", isPage:true},
 
-		//Concrete files (not recommended)
-		"scripts/client-script.es6" : {url:"client-script.es6"},
-		"realpage.html"             : {url:"realpage", isPage:true}
+		//Concrete files
+		"scripts/client-script.es6" : {url:"client-script.es6"}
 	},
 
 	mimeTypes : { //extend base mime Types
@@ -52,8 +51,9 @@ module.exports = {
 			</html>
 		`);
 
-		/*
 		//Counter test
+
+		/*
 		//will not work correct on multithread systems, because 'global' is unique for each worker
 		global.workerVariable = global.workerVariable || 0;
 		global.workerVariable++;

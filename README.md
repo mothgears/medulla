@@ -1,5 +1,5 @@
 # Medulla
-`medulla` is a simple, no-dependency node.js server.
+`medulla` is a multithreaded, no-dependency node.js server.
 
 ## Features
 - The server use several workers for [**multithreaded**](#common-variables) request handling.
@@ -121,7 +121,7 @@ module.exports.watchedFiles = {
     "bin/*.js" : {type:"cached", url:"scripts/*.js"}, //all js files directly from "bin" folder
     "styles/~*.css" : {type:"cached"} //all css files from "bin" folder and subfolders
     
-    //or concrete files (not recommended)
+    //or concrete files
     "styles2/main-new.css"  : {type:"cached"},
     "bin/client-script.es6" : {type:"cached", url:"client-script.es6"}
 };

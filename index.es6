@@ -189,24 +189,24 @@ module.exports = customSettings=>{
 
 		//
 		let handlersModify   = [],
-			handlersLaunch   = [],
-			handlersShutdown = [],
-			handlersError    = [];
+		    handlersLaunch   = [],
+		    handlersShutdown = [],
+		    handlersError    = [],
 
-		let pluginsJS = '',
-			messageHandlers = {},
-			workerPlugins = [],
-			ordersToStart = 0,
-			watchers = {},
-			onRestartEnd = [],
-			error = null,
-			lauched = 0,
-			exits = 0,
-			templates = [],
-			workersQueue = [],
-			commonStorage = "{}",
-			addedFiles = {},
-			medullaStats = {};
+		    pluginsJS        = '',
+		    messageHandlers  = {},
+		    workerPlugins    = [],
+		    ordersToStart    = 0,
+		    watchers         = {},
+		    onRestartEnd     = [],
+		    error            = null,
+		    lauched          = 0,
+		    exits            = 0,
+		    templates        = [],
+		    workersQueue     = [],
+		    commonStorage    = "{}",
+		    addedFiles       = {},
+		    medullaStats     = {};
 
 		const toClient = func=>{
 			if (typeof func === 'function') {
@@ -334,12 +334,12 @@ module.exports = customSettings=>{
 				templates = JSON.parse(msg.templates);
 
 				let keys = Object.keys(watchers);
-				for (let fid of keys) {
-					if (!fileIndex[fid] || !paramsEqual(watchers[fid].fileparam.params, fileIndex[fid].params) ) {
+				for (let filepath of keys) {
+					if (!fileIndex[filepath] || !paramsEqual(watchers[filepath].fileparam.params, fileIndex[filepath].params) ) {
 						//REMOVE WATCHER
-						watchers[fid].close();
-						delete watchers[fid];
-						console.info(`index rem "${fid}"`);
+						if (watchers[filepath]) watchers[filepath].close();
+						delete watchers[filepath];
+						console.info(`index rem: "${filepath}"`);
 					}
 				}
 
@@ -349,7 +349,12 @@ module.exports = customSettings=>{
 						//ADD WATCHER
 						let fileparam = fileIndex[filepath];
 
-						console.info(`index add "${filepath}"` + (fileparam.url?` as "${fileparam.url}"`:''));
+						//TEST FILE EXIST
+						if (!fs.existsSync(filepath)) {
+							console.warn(`index err: "${filepath}" not found on server`);
+							continue;
+						}
+						console.info(`index add: "${filepath}"` + (fileparam.url?` as "${fileparam.url}"`:''));
 
 						if (fileparam.module) {
 							let onFileChange = (eventType) => {
@@ -760,7 +765,7 @@ module.exports = customSettings=>{
 			if (!code) for (let ign of settings.watchIgnore) if (ign(filepath)) return;
 			//------
 
-			watchedFiles[filepath] = {
+			if (process.env.mainWorker === '1') watchedFiles[filepath] = {
 				module : Boolean(code),
 				params : (params ? params : {}),
 				url    : (params ? params.url : null),
@@ -797,79 +802,82 @@ module.exports = customSettings=>{
 				params.type = params.type || 'cached';
 
 				//TEMPLATE PROCESSING
-				if (filepath.search(/[*?~]/g) >= 0) {
-					templates.push(filepath);
+				//if (filepath.search(/[*?~]/g) >= 0) {
+				templates.push(filepath);
 
-					let pathTo = filepath;
+				let pathTo = filepath;
 
-					let ext = null;
-					if (pathTo.endsWith('?')) pathTo = pathTo.slice(0, -1);
-					else ext = mod_path.extname(pathTo);
-					let fln = mod_path.basename(pathTo, ext?ext:undefined);
-					let dir = mod_path.dirname(pathTo);
-					let recursive = fln.startsWith('~');
-					if (recursive) {
-						fln = fln.slice(1);
-					}
-					if (fln.indexOf('*') >= 0) fln = null;
+				let ext = null;
+				if (pathTo.endsWith('?')) pathTo = pathTo.slice(0, -1);
+				else ext = mod_path.extname(pathTo);
 
-					//DIR TO WATCHED INDEX
-					dir = mod_path.resolve(dir);
+				let fln = mod_path.basename(pathTo, ext?ext:undefined);
+				let dir = mod_path.dirname(pathTo);
+				let recursive = fln.startsWith('~');
+				if (recursive) {
+					fln = fln.slice(1);
+				}
+				if (fln.indexOf('*') >= 0) fln = null;
 
-					const dirToWatch = dir=>{
-						for (let ign of settings.watchIgnore) if (ign(dir)) return;
+				//DIR TO WATCHED INDEX
+				dir = mod_path.resolve(dir);
 
-						if (!watchedFiles[dir]) {
-							watchedFiles[dir] = {
-								module : false,
-								params : {type:'folder'}
-							};
-							let files = fs.readdirSync(dir);
-							files.forEach(dirname => {
-								let path = mod_path.resolve(dir, dirname);
-								let stat = fs.statSync(path);
-								if (stat && stat.isDirectory()) {
-									if (recursive) dirToWatch(path);
-								}
-							});
-						}
-					};
-					dirToWatch(dir);
+				const dirToWatch = dir=>{
+					for (let ign of settings.watchIgnore) if (ign(dir)) return;
 
-					const processDir = (dir, sdir='')=>{
+					if (!watchedFiles[dir]) {
+						watchedFiles[dir] = {
+							module : false,
+							params : {type:'folder'}
+						};
 						let files = fs.readdirSync(dir);
-
-						//FOR EACH FILE
-						files.forEach(filename => {
-							let path = mod_path.resolve(dir, filename);
+						files.forEach(dirname => {
+							let path = mod_path.resolve(dir, dirname);
 							let stat = fs.statSync(path);
 							if (stat && stat.isDirectory()) {
-								if (recursive) processDir(path+'/', sdir+filename+'/');
-							}
-
-							else if (
-								stat && stat.isFile()
-								&& (!ext || ext === mod_path.extname(filename))
-								&& (!fln || fln === mod_path.basename(pathTo, ext?ext:undefined))
-							) {
-								let _ext = mod_path.extname(filename);
-								let _fln = mod_path.basename(filename, _ext);
-
-								let fileParams = Object.assign({}, params);
-								let filePath = mod_path.resolve(dir, _fln+_ext);
-								fileParams.url = (params.url || filepath).replace('*', _fln).replace('?', _ext);
-								if (recursive) fileParams.url = fileParams.url.replace('~', sdir);
-
-								addToWatchedFiles(filePath, fileParams);
+								if (recursive) dirToWatch(path);
 							}
 						});
-					};
+					}
+				};
+				if (process.env.mainWorker === '1') dirToWatch(dir);
 
-					processDir(dir);
+				const processDir = (dir, sdir='')=>{
+					let files = fs.readdirSync(dir);
 
-				} else {
+					//FOR EACH FILE
+					files.forEach(filename => {
+						let path = mod_path.resolve(dir, filename);
+						let stat = fs.statSync(path);
+
+						let _ext = mod_path.extname(filename);
+						let _fln = mod_path.basename(filename, _ext?_ext:undefined);
+
+						if (stat && stat.isDirectory()) {
+							if (recursive) processDir(path+'/', sdir+filename+'/');
+						} else if (
+							stat && stat.isFile()
+							&& (!ext || ext === _ext)
+							&& (!fln || fln === _fln)
+						) {
+							let _ext = mod_path.extname(filename);
+							let _fln = mod_path.basename(filename, _ext);
+
+							let fileParams = Object.assign({}, params);
+							let filePath = mod_path.resolve(dir, _fln+_ext);
+							fileParams.url = (params.url || filepath).replace('*', _fln).replace('?', _ext);
+							if (recursive) fileParams.url = fileParams.url.replace('~', sdir);
+
+							addToWatchedFiles(filePath, fileParams);
+						}
+					});
+				};
+
+				processDir(dir);
+
+				/*} else {
 					addToWatchedFiles(filepath, params);
-				}
+				}*/
 			}
 		}
 		if (mm.onRequest) handlerRequest = mm.onRequest;
