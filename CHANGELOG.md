@@ -1,5 +1,10 @@
 # Changelog
 
+## V 0.7.0
+##### Improvements
+- added dashboard
+- added parsing for urls from `watched Files` or `publicAccess` (`mysite/mylink?foo=bar` will work now)
+
 ## V 0.6.9
 ##### Improvements
 - reduced workload when processing watchedFiles

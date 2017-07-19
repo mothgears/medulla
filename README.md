@@ -89,6 +89,9 @@ Async logging to file for "console.log()", "console.warn()" and "console.error()
 Rules for ignoring files when watching (does not apply to `required` modules). 
 Represents a list of functions which return true if need ignore this file or directory.
 
+- `dashboardPassword: null`  
+Password for dashboard, if set, use: `http://yoursite/dashboard?password=yourpass`
+
 #### App main module (entry point)
 Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list:
 ```es6
@@ -206,6 +209,8 @@ module.exports.onRequest = (request, response)=>{
     return 1; 
 };
 ```
+#### Dashboard
+You may see server status at `http://yoursite/dashboard` link
 
 #### Console commands
   - `version` - show module current version  

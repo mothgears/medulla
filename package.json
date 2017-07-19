@@ -1,6 +1,6 @@
 {
   "name": "medulla",
-  "version": "0.6.9",
+  "version": "0.7.0",
   "description": "node.js multithreaded server with caching files, hot page/script/styles reload plugin and proxy mode",
   "main": "index.es6",
   "dependencies": {},
@@ -14,7 +14,7 @@
   "author": "Artem Varshavin",
   "license": "MIT",
   "engines": {
-    "node": ">=7.4.0"
+    "node": ">=8.1.4"
   },
   "repository" : {
     "type": "git",

@@ -6,12 +6,8 @@ module.exports = customSettings=>{
 		fs       = require('fs'),
 		os       = require('os'),
 		threads  = os.cpus().length,
-		mod_path = require('path');
-
-	//TOOLS
-	const
-		_00  = n=>n<10  ? ('0'+n)      : n,
-		_000 = n=>n<100 ? ('0'+_00(n)) : n;
+		mod_path = require('path'),
+		{_00, _000, dateFormat} = require('./tools.es6');
 
 	//SETTINGS
 	let settings = {
@@ -22,7 +18,7 @@ module.exports = customSettings=>{
 		hosts             : {},
 		platforms         : {},
 		forcewatch        : false,
-		plugins           : {'./mod-ws.es6':{}/*, './mod-dashboard.es6':{}*/},
+		plugins           : {'./mod-ws.es6':{}, './mod-dashboard.es6':{}},
 		watch             : true,
 		watchIgnore       : [
 			f=>f.endsWith('___jb_tmp___'),
@@ -35,7 +31,8 @@ module.exports = customSettings=>{
 			level: 'trace',
 			separatedTypes: false,
 			dir: process.cwd()
-		}
+		},
+		dashboardPassword : null
 	};
 
 	//GLOBAL SERVER INTERFACE
@@ -47,7 +44,7 @@ module.exports = customSettings=>{
 		let keys = Object.keys(mergedSettings);
 		for (let key of keys) {
 			let s = settings[key];
-			if (typeof s === 'object') {
+			if (s !== null && typeof s === 'object') {
 				let ms = mergedSettings[key];
 				if (Array.isArray(s)) {
 					for (let el of ms) {
@@ -139,6 +136,7 @@ module.exports = customSettings=>{
 	}
 	delete settings.devPlugins;
 
+	//PLUGINS M
 	let pluginIndex = {}; //PLUGINS ORDER
 	let pInd = 0;
 	let plugins = Object.keys(settings.plugins);
@@ -163,7 +161,7 @@ module.exports = customSettings=>{
 	pluginIndex = Object.keys(pluginsByPriority);
 	pluginIndex.sort();
 
-	//PLUGINS
+	//PLUGINS GLOBAL
 	for (let pid of pluginIndex) {
 		let plugin = pluginsByPriority[pid];
 		let p = require(plugin);
@@ -188,25 +186,35 @@ module.exports = customSettings=>{
 		});
 
 		//
-		let handlersModify   = [],
-		    handlersLaunch   = [],
-		    handlersShutdown = [],
-		    handlersError    = [],
+		let
+			handlersModify   = [],
+			handlersLaunch   = [],
+			handlersShutdown = [],
+			handlersError    = [],
 
-		    pluginsJS        = '',
-		    messageHandlers  = {},
-		    workerPlugins    = [],
-		    ordersToStart    = 0,
-		    watchers         = {},
-		    onRestartEnd     = [],
-		    error            = null,
-		    lauched          = 0,
-		    exits            = 0,
-		    templates        = [],
-		    workersQueue     = [],
-		    commonStorage    = "{}",
-		    addedFiles       = {},
-		    medullaStats     = {};
+			pluginsJS        = '',
+			messageHandlers  = {},
+			workerPlugins    = [],
+			ordersToStart    = 0,
+			watchers         = {},
+			onRestartEnd     = [],
+			error            = null,
+			lauched          = 0,
+			exits            = 0,
+			templates        = [],
+			workersQueue     = [],
+			commonStorage    = "{}",
+			addedFiles       = {},
+			medullaStats     = {
+				medullaLauched: dateFormat(),
+				workersLauched: '-',
+				requests: 0,
+				worktime: 0
+			};
+
+		setInterval(()=>{
+			medullaStats.worktime ++;
+		}, 60000);
 
 		const toClient = func=>{
 			if (typeof func === 'function') {
@@ -214,6 +222,17 @@ module.exports = customSettings=>{
 				body = body.slice(body.indexOf("{") + 1, body.lastIndexOf("}"));
 				pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
 			} else pluginsJS += func;
+		};
+
+		const sendMessage = msg=>{
+			let keys = Object.keys(cluster.workers);
+			for (let key of keys) try {
+				cluster.workers[key].send(msg);
+			} catch(e){}
+		};
+
+		const onMessage = (type, handler)=> {
+			messageHandlers[type] = handler;
 		};
 
 		//PLUGINS
@@ -225,7 +244,8 @@ module.exports = customSettings=>{
 					settings,
 					toClient,
 					medullaStats,
-					messageHandlers,
+					onMessage,
+					sendMessage,
 					cluster
 				};
 				p.medullaMaster(io);
@@ -470,6 +490,7 @@ module.exports = customSettings=>{
 
 					for (let h of handlersLaunch) h();
 					medullaStats.totalWorkers = threads;
+					medullaStats.workersLauched = dateFormat();
 					console.info('workers launched');
 				}
 
@@ -492,7 +513,8 @@ module.exports = customSettings=>{
 						storage: msg.storage
 					});
 				}
-
+			} else if (msg.type === 'stats_rpm') {
+				medullaStats.requests += msg.value;
 			} else if (messageHandlers[msg.type]) {
 				messageHandlers[msg.type](msg);
 			} else {
@@ -550,7 +572,8 @@ module.exports = customSettings=>{
 		//LIBS
 		const getRequires = require('./detectRequires.es6');
 		const mod_http = require('http');
-		const mod_url  = require('url');
+		//const mod_url  = require('url');
+		const mod_url = require('url');
 		const mod_zlib = require('zlib');
 
 		//
@@ -967,11 +990,22 @@ module.exports = customSettings=>{
 			return 'text/html';
 		};
 
+		let requests = 0;
+
+		setInterval(()=>{
+			process.send({type:'stats_rpm', value: requests});
+			requests = 0;
+		}, 60000);
+
 		//LAUNCH
 		mod_http.createServer((request, response)=>{
+			requests++;
+
 			let wait = false;
 
-			let path = request.url.slice(1);
+			let parsedURL = mod_url.parse(request.url);
+
+			let path = parsedURL.pathname.slice(1);
 			let ext  = mod_path.extname(path).slice(1);
 			let mt   = (ext && mimeTypes[ext])?mimeTypes[ext]:null;
 			let cnt  = null;
@@ -982,7 +1016,7 @@ module.exports = customSettings=>{
 			 } else*/
 
 			if (routes[path]) {
-				wait = routes[path](request, response);
+				wait = routes[path](request, response, parsedURL);
 			} else if (cache[path]) {
 				ext = mod_path.extname(cache[path].srcPath).slice(1);
 				mt = (ext && mimeTypes[ext]) ? mimeTypes[ext] : mt;

@@ -1,12 +1,9 @@
 module.exports.medullaMaster = io=>{
-	io.messageHandlers['dashboard_get'] = ()=>{
-		let data = JSON.stringify(io.medullaStats);
 
-		let keys = Object.keys(io.cluster.workers);
-		for (let key of keys) try {
-			io.cluster.workers[key].send({type:'dashboard_data', data});
-		} catch(e){}
-	}
+	io.onMessage('dashboard_get', msg=>{
+		let data = JSON.stringify(io.medullaStats);
+		io.sendMessage({type:'dashboard_data', data});
+	});
 
 	/*medulla.ws.on('connection', ws=>{
 
@@ -31,6 +28,8 @@ module.exports.medullaMaster = io=>{
 };
 
 module.exports.medullaWorker = io=>{
+	const { URL , URLSearchParams } = require('url');
+
 	let data = {},
 	    need_resp = null;
 
@@ -43,23 +42,36 @@ module.exports.medullaWorker = io=>{
 			let output = `
 			<html>
 				<body>
-					Workers: ${data.totalWorkers}<br>
+					Server lauched on: ${data.medullaLauched}<br>
+					Workers lauched on: ${data.workersLauched}<br>
+					<br>
+					Total workers lauched: ${data.totalWorkers}<br><br>
+					Requests: ${data.requests}<br>
+					Requests per minute: ${data.requests / data.worktime}<br>
+					(updated every minute)
 				</body>
 			</html>
 			`;
+			need_resp.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
 			need_resp.write(output);
 			need_resp.end();
 			need_resp = null;
 		}
 	});
 
-	io.routes['dashboard'] = (request, response)=>{
-		//To Master
-		need_resp = response;
+	io.routes['dashboard'] = (request, response, url)=>{
+		let urlSearchParams = new URLSearchParams(url.search);
 
-		response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
-		process.send({type:'dashboard_get'});
-
-		return true;
+		let pw = urlSearchParams.get('password');
+		if (pw !== io.settings.dashboardPassword) {
+			response.writeHeader(403, {"Content-Type": "text/html; charset=utf-8"});
+			response.write('Forbidden.');
+			response.end();
+			return false;
+		} else {
+			need_resp = response;
+			process.send({type:'dashboard_get'});
+			return true; //wait
+		}
 	};
 };
