@@ -6,12 +6,8 @@ module.exports = customSettings=>{
 		fs       = require('fs'),
 		os       = require('os'),
 		threads  = os.cpus().length,
-		mod_path = require('path');
-
-	//TOOLS
-	const
-		_00  = n=>n<10  ? ('0'+n)      : n,
-		_000 = n=>n<100 ? ('0'+_00(n)) : n;
+		mod_path = require('path'),
+		{_00, _000, dateFormat} = require('./tools.es6');
 
 	//SETTINGS
 	let settings = {
@@ -22,7 +18,7 @@ module.exports = customSettings=>{
 		hosts             : {},
 		platforms         : {},
 		forcewatch        : false,
-		plugins           : {'./mod-ws.es6':{}/*, './mod-dashboard.es6':{}*/},
+		plugins           : {'./mod-ws.es6':{}, './mod-dashboard.es6':{}},
 		watch             : true,
 		watchIgnore       : [
 			f=>f.endsWith('___jb_tmp___'),
@@ -35,7 +31,8 @@ module.exports = customSettings=>{
 			level: 'trace',
 			separatedTypes: false,
 			dir: process.cwd()
-		}
+		},
+		dashboardPassword : null
 	};
 
 	//GLOBAL SERVER INTERFACE
@@ -47,7 +44,7 @@ module.exports = customSettings=>{
 		let keys = Object.keys(mergedSettings);
 		for (let key of keys) {
 			let s = settings[key];
-			if (typeof s === 'object') {
+			if (s !== null && typeof s === 'object') {
 				let ms = mergedSettings[key];
 				if (Array.isArray(s)) {
 					for (let el of ms) {
@@ -139,6 +136,7 @@ module.exports = customSettings=>{
 	}
 	delete settings.devPlugins;
 
+	//PLUGINS M
 	let pluginIndex = {}; //PLUGINS ORDER
 	let pInd = 0;
 	let plugins = Object.keys(settings.plugins);
@@ -163,7 +161,7 @@ module.exports = customSettings=>{
 	pluginIndex = Object.keys(pluginsByPriority);
 	pluginIndex.sort();
 
-	//PLUGINS
+	//PLUGINS GLOBAL
 	for (let pid of pluginIndex) {
 		let plugin = pluginsByPriority[pid];
 		let p = require(plugin);
@@ -188,25 +186,35 @@ module.exports = customSettings=>{
 		});
 
 		//
-		let handlersModify   = [],
+		let
+			handlersModify   = [],
 			handlersLaunch   = [],
 			handlersShutdown = [],
-			handlersError    = [];
+			handlersError    = [],
 
-		let pluginsJS = '',
-			messageHandlers = {},
-			workerPlugins = [],
-			ordersToStart = 0,
-			watchers = {},
-			onRestartEnd = [],
-			error = null,
-			lauched = 0,
-			exits = 0,
-			templates = [],
-			workersQueue = [],
-			commonStorage = "{}",
-			addedFiles = {},
-			medullaStats = {};
+			pluginsJS        = '',
+			messageHandlers  = {},
+			workerPlugins    = [],
+			ordersToStart    = 0,
+			watchers         = {},
+			onRestartEnd     = [],
+			error            = null,
+			lauched          = 0,
+			exits            = 0,
+			templates        = [],
+			workersQueue     = [],
+			commonStorage    = "{}",
+			addedFiles       = {},
+			medullaStats     = {
+				medullaLauched: dateFormat(),
+				workersLauched: '-',
+				requests: 0,
+				worktime: 0
+			};
+
+		setInterval(()=>{
+			medullaStats.worktime ++;
+		}, 60000);
 
 		const toClient = func=>{
 			if (typeof func === 'function') {
@@ -214,6 +222,17 @@ module.exports = customSettings=>{
 				body = body.slice(body.indexOf("{") + 1, body.lastIndexOf("}"));
 				pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
 			} else pluginsJS += func;
+		};
+
+		const sendMessage = msg=>{
+			let keys = Object.keys(cluster.workers);
+			for (let key of keys) try {
+				cluster.workers[key].send(msg);
+			} catch(e){}
+		};
+
+		const onMessage = (type, handler)=> {
+			messageHandlers[type] = handler;
 		};
 
 		//PLUGINS
@@ -225,7 +244,8 @@ module.exports = customSettings=>{
 					settings,
 					toClient,
 					medullaStats,
-					messageHandlers,
+					onMessage,
+					sendMessage,
 					cluster
 				};
 				p.medullaMaster(io);
@@ -242,7 +262,9 @@ module.exports = customSettings=>{
 		process.on('uncaughtException', err=>{
 			if (err.code === 'EPERM' && err.syscall === 'Error watching file for changes:') {
 				console.warn('Removing folder.');
-			} else throw err;
+			} /*else if (err.code === 'ENOENT') {
+
+			}*/ else throw err;
 		});
 
 		const startServer = msg=>{
@@ -332,12 +354,12 @@ module.exports = customSettings=>{
 				templates = JSON.parse(msg.templates);
 
 				let keys = Object.keys(watchers);
-				for (let fid of keys) {
-					if (!fileIndex[fid] || !paramsEqual(watchers[fid].fileparam.params, fileIndex[fid].params) ) {
+				for (let filepath of keys) {
+					if (!fileIndex[filepath] || !paramsEqual(watchers[filepath].fileparam.params, fileIndex[filepath].params) ) {
 						//REMOVE WATCHER
-						watchers[fid].close();
-						delete watchers[fid];
-						console.info(`index rem "${fid}"`);
+						if (watchers[filepath]) watchers[filepath].close();
+						delete watchers[filepath];
+						console.info(`index rem: "${filepath}"`);
 					}
 				}
 
@@ -347,7 +369,12 @@ module.exports = customSettings=>{
 						//ADD WATCHER
 						let fileparam = fileIndex[filepath];
 
-						console.info(`index add "${filepath}"` + (fileparam.url?` as "${fileparam.url}"`:''));
+						//TEST FILE EXIST
+						if (!fs.existsSync(filepath)) {
+							console.warn(`index err: "${filepath}" not found on server`);
+							continue;
+						}
+						console.info(`index add: "${filepath}"` + (fileparam.url?` as "${fileparam.url}"`:''));
 
 						if (fileparam.module) {
 							let onFileChange = (eventType) => {
@@ -463,6 +490,7 @@ module.exports = customSettings=>{
 
 					for (let h of handlersLaunch) h();
 					medullaStats.totalWorkers = threads;
+					medullaStats.workersLauched = dateFormat();
 					console.info('workers launched');
 				}
 
@@ -485,7 +513,8 @@ module.exports = customSettings=>{
 						storage: msg.storage
 					});
 				}
-
+			} else if (msg.type === 'stats_rpm') {
+				medullaStats.requests += msg.value;
 			} else if (messageHandlers[msg.type]) {
 				messageHandlers[msg.type](msg);
 			} else {
@@ -543,7 +572,8 @@ module.exports = customSettings=>{
 		//LIBS
 		const getRequires = require('./detectRequires.es6');
 		const mod_http = require('http');
-		const mod_url  = require('url');
+		//const mod_url  = require('url');
+		const mod_url = require('url');
 		const mod_zlib = require('zlib');
 
 		//
@@ -758,7 +788,7 @@ module.exports = customSettings=>{
 			if (!code) for (let ign of settings.watchIgnore) if (ign(filepath)) return;
 			//------
 
-			watchedFiles[filepath] = {
+			if (process.env.mainWorker === '1') watchedFiles[filepath] = {
 				module : Boolean(code),
 				params : (params ? params : {}),
 				url    : (params ? params.url : null),
@@ -795,79 +825,82 @@ module.exports = customSettings=>{
 				params.type = params.type || 'cached';
 
 				//TEMPLATE PROCESSING
-				if (filepath.search(/[*?~]/g) >= 0) {
-					templates.push(filepath);
+				//if (filepath.search(/[*?~]/g) >= 0) {
+				templates.push(filepath);
 
-					let pathTo = filepath;
+				let pathTo = filepath;
 
-					let ext = null;
-					if (pathTo.endsWith('?')) pathTo = pathTo.slice(0, -1);
-					else ext = mod_path.extname(pathTo);
-					let fln = mod_path.basename(pathTo, ext?ext:undefined);
-					let dir = mod_path.dirname(pathTo);
-					let recursive = fln.startsWith('~');
-					if (recursive) {
-						fln = fln.slice(1);
-					}
-					if (fln.indexOf('*') >= 0) fln = null;
+				let ext = null;
+				if (pathTo.endsWith('?')) pathTo = pathTo.slice(0, -1);
+				else ext = mod_path.extname(pathTo);
 
-					//DIR TO WATCHED INDEX
-					dir = mod_path.resolve(dir);
+				let fln = mod_path.basename(pathTo, ext?ext:undefined);
+				let dir = mod_path.dirname(pathTo);
+				let recursive = fln.startsWith('~');
+				if (recursive) {
+					fln = fln.slice(1);
+				}
+				if (fln.indexOf('*') >= 0) fln = null;
 
-					const dirToWatch = dir=>{
-						for (let ign of settings.watchIgnore) if (ign(dir)) return;
+				//DIR TO WATCHED INDEX
+				dir = mod_path.resolve(dir);
 
-						if (!watchedFiles[dir]) {
-							watchedFiles[dir] = {
-								module : false,
-								params : {type:'folder'}
-							};
-							let files = fs.readdirSync(dir);
-							files.forEach(dirname => {
-								let path = mod_path.resolve(dir, dirname);
-								let stat = fs.statSync(path);
-								if (stat && stat.isDirectory()) {
-									if (recursive) dirToWatch(path);
-								}
-							});
-						}
-					};
-					dirToWatch(dir);
+				const dirToWatch = dir=>{
+					for (let ign of settings.watchIgnore) if (ign(dir)) return;
 
-					const processDir = (dir, sdir='')=>{
+					if (!watchedFiles[dir]) {
+						watchedFiles[dir] = {
+							module : false,
+							params : {type:'folder'}
+						};
 						let files = fs.readdirSync(dir);
-
-						//FOR EACH FILE
-						files.forEach(filename => {
-							let path = mod_path.resolve(dir, filename);
+						files.forEach(dirname => {
+							let path = mod_path.resolve(dir, dirname);
 							let stat = fs.statSync(path);
 							if (stat && stat.isDirectory()) {
-								if (recursive) processDir(path+'/', sdir+filename+'/');
-							}
-
-							else if (
-								stat && stat.isFile()
-								&& (!ext || ext === mod_path.extname(filename))
-								&& (!fln || fln === mod_path.basename(pathTo, ext?ext:undefined))
-							) {
-								let _ext = mod_path.extname(filename);
-								let _fln = mod_path.basename(filename, _ext);
-
-								let fileParams = Object.assign({}, params);
-								let filePath = mod_path.resolve(dir, _fln+_ext);
-								fileParams.url = (params.url || filepath).replace('*', _fln).replace('?', _ext);
-								if (recursive) fileParams.url = fileParams.url.replace('~', sdir);
-
-								addToWatchedFiles(filePath, fileParams);
+								if (recursive) dirToWatch(path);
 							}
 						});
-					};
+					}
+				};
+				if (process.env.mainWorker === '1') dirToWatch(dir);
 
-					processDir(dir);
+				const processDir = (dir, sdir='')=>{
+					let files = fs.readdirSync(dir);
 
-				} else {
+					//FOR EACH FILE
+					files.forEach(filename => {
+						let path = mod_path.resolve(dir, filename);
+						let stat = fs.statSync(path);
+
+						let _ext = mod_path.extname(filename);
+						let _fln = mod_path.basename(filename, _ext?_ext:undefined);
+
+						if (stat && stat.isDirectory()) {
+							if (recursive) processDir(path+'/', sdir+filename+'/');
+						} else if (
+							stat && stat.isFile()
+							&& (!ext || ext === _ext)
+							&& (!fln || fln === _fln)
+						) {
+							let _ext = mod_path.extname(filename);
+							let _fln = mod_path.basename(filename, _ext);
+
+							let fileParams = Object.assign({}, params);
+							let filePath = mod_path.resolve(dir, _fln+_ext);
+							fileParams.url = (params.url || filepath).replace('*', _fln).replace('?', _ext);
+							if (recursive) fileParams.url = fileParams.url.replace('~', sdir);
+
+							addToWatchedFiles(filePath, fileParams);
+						}
+					});
+				};
+
+				processDir(dir);
+
+				/*} else {
 					addToWatchedFiles(filepath, params);
-				}
+				}*/
 			}
 		}
 		if (mm.onRequest) handlerRequest = mm.onRequest;
@@ -957,11 +990,22 @@ module.exports = customSettings=>{
 			return 'text/html';
 		};
 
+		let requests = 0;
+
+		setInterval(()=>{
+			process.send({type:'stats_rpm', value: requests});
+			requests = 0;
+		}, 60000);
+
 		//LAUNCH
 		mod_http.createServer((request, response)=>{
+			requests++;
+
 			let wait = false;
 
-			let path = request.url.slice(1);
+			let parsedURL = mod_url.parse(request.url);
+
+			let path = parsedURL.pathname.slice(1);
 			let ext  = mod_path.extname(path).slice(1);
 			let mt   = (ext && mimeTypes[ext])?mimeTypes[ext]:null;
 			let cnt  = null;
@@ -972,7 +1016,7 @@ module.exports = customSettings=>{
 			 } else*/
 
 			if (routes[path]) {
-				wait = routes[path](request, response);
+				wait = routes[path](request, response, parsedURL);
 			} else if (cache[path]) {
 				ext = mod_path.extname(cache[path].srcPath).slice(1);
 				mt = (ext && mimeTypes[ext]) ? mimeTypes[ext] : mt;
@@ -984,10 +1028,16 @@ module.exports = customSettings=>{
 				}
 			} else if (files[path]) {
 				if (!mt) mt = nomt(ext);
-				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
-				response.write(fs.readFileSync(files[path].srcPath));
-				if (files[path].isPage) {
-					response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+				try {
+					let content = fs.readFileSync(files[path].srcPath);
+					response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
+					response.write(content);
+					if (files[path].isPage) {
+						response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+					}
+				} catch (e) {
+					response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
+					response.write('ERROR: Registred file not found on server.');
 				}
 			} else if (cnt = accessToFile(path)) {
 				if (!mt) mt = nomt(ext);

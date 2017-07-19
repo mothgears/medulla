@@ -1,5 +1,5 @@
 # Medulla
-`medulla` is a simple, no-dependency node.js server.
+`medulla` is a multithreaded, no-dependency node.js server.
 
 ## Features
 - The server use several workers for [**multithreaded**](#common-variables) request handling.
@@ -89,6 +89,9 @@ Async logging to file for "console.log()", "console.warn()" and "console.error()
 Rules for ignoring files when watching (does not apply to `required` modules). 
 Represents a list of functions which return true if need ignore this file or directory.
 
+- `dashboardPassword: null`  
+Password for dashboard, if set, use: `http://yoursite/dashboard?password=yourpass`
+
 #### App main module (entry point)
 Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list:
 ```es6
@@ -119,14 +122,15 @@ module.exports.watchedFiles = {
     
     //set templates
     "bin/*.js" : {type:"cached", url:"scripts/*.js"}, //all js files directly from "bin" folder
+    "styles/~*.css" : {type:"cached"} //all css files from "bin" folder and subfolders
     
     //or concrete files
-    "styles/main.css"       : {type:"cached"},
+    "styles2/main-new.css"  : {type:"cached"},
     "bin/client-script.es6" : {type:"cached", url:"client-script.es6"}
 };
 ```
 **(!)** *don't add modules to watchedFiles, required modules added automatically.*  
-**(!)** *this list is creating watchers, therefore on some OS, directories which contain this files/folders may be blocked for rename or delete till template target-files/folders will not be removed from `watchedFiles` list or from disk.*  
+**(!)** *this list is creating watchers, therefore on some OS, directories which contain this files/folders may be blocked for rename or delete till template target files/folders will not be removed from `watchedFiles` list or from disk.*  
 
 - `type:"cached"`  
 *(Default value)*  
@@ -205,6 +209,8 @@ module.exports.onRequest = (request, response)=>{
     return 1; 
 };
 ```
+#### Dashboard
+You may see server status at `http://yoursite/dashboard` link
 
 #### Console commands
   - `version` - show module current version  

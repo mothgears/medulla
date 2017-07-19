@@ -1,5 +1,23 @@
 # Changelog
 
+## V 0.7.0
+##### Improvements
+- added dashboard
+- added parsing for urls from `watched Files` or `publicAccess` (`mysite/mylink?foo=bar` will work now)
+
+## V 0.6.9
+##### Improvements
+- reduced workload when processing watchedFiles
+
+##### Fixes
+- added handling error with `type:cached` files from `watched Files` which not exist on disk
+- fixed incorrect `watched Files` template nametest
+- now concrete files in `watched Files` is templates, it fix error with handling adding the files
+
+## V 0.6.8
+##### Fixes
+- added handling error with `type:file` files from `watched Files` which not exist on disk
+
 ## V 0.6.7
 ##### Improvements
 - added warning for `watched Files` missing files
