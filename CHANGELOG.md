@@ -1,9 +1,13 @@
 # Changelog
 
+## V 0.7.1
+##### Improvements
+- dashboard updated
+
 ## V 0.7.0
 ##### Improvements
-- added dashboard
-- added parsing for urls from `watched Files` or `publicAccess` (`mysite/mylink?foo=bar` will work now)
+- added dashboard with simple password protection
+- added parsing for urls from `watched Files` or `publicAccess` (`mysite/myfile.js?foo=bar` will work now)
 
 ## V 0.6.9
 ##### Improvements

@@ -172,15 +172,17 @@ module.exports = customSettings=>{
 	//MASTER
 	//------------------------------------------------------------------------------------------------------------------
 	if (cluster.isMaster) {
+		const stopServer = ()=>{
+			let keys = Object.keys(cluster.workers);
+			for (let key of keys) cluster.workers[key].send({type:'end', exitcode:2});
+		};
+
 		//COMMANDS
 		process.openStdin().addListener("data", cmd=>{
 			cmd = cmd.toString().trim();
 			const acts = {
 				'version':()=>console.info(require('./package.json').version),
-				'stop'   :()=>{
-					let keys = Object.keys(cluster.workers);
-					for (let key of keys) cluster.workers[key].send({type:'end', exitcode:2});
-				}
+				'stop'   :stopServer
 			};
 			(acts[cmd] || (()=>{console.log('command not defined')}))();
 		});
@@ -206,15 +208,11 @@ module.exports = customSettings=>{
 			commonStorage    = "{}",
 			addedFiles       = {},
 			medullaStats     = {
+				medullaLauchedTS: Date.now() / 1000,
 				medullaLauched: dateFormat(),
 				workersLauched: '-',
-				requests: 0,
-				worktime: 0
+				requests: 0
 			};
-
-		setInterval(()=>{
-			medullaStats.worktime ++;
-		}, 60000);
 
 		const toClient = func=>{
 			if (typeof func === 'function') {
@@ -246,7 +244,8 @@ module.exports = customSettings=>{
 					medullaStats,
 					onMessage,
 					sendMessage,
-					cluster
+					cluster,
+					stopServer
 				};
 				p.medullaMaster(io);
 				if (io.onModify)   handlersModify  .push(io.onModify);
@@ -601,6 +600,10 @@ module.exports = customSettings=>{
 			cacheModificators = [],
 			handlersCacheModify= [];
 
+		const stopServer=()=>{
+			process.send({type:'stop'})
+		};
+
 		for (let plugin of workerPlugins) {
 			let p = require(plugin);
 			if (p.medullaWorker) {
@@ -608,7 +611,8 @@ module.exports = customSettings=>{
 					settings,
 					toClient,
 					getRequires,
-					routes
+					routes,
+					stopServer
 				};
 				p.medullaWorker(io);
 				if (io.cacheModificator) cacheModificators.push(io.cacheModificator);
