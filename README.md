@@ -130,7 +130,7 @@ module.exports.watchedFiles = {
 };
 ```
 **(!)** *don't add modules to watchedFiles, required modules added automatically.*  
-**(!)** *this list is creating watchers, therefore on some OS, directories which contain this files/folders may be blocked for rename or delete till template target files/folders will not be removed from `watchedFiles` list or from disk.*  
+**(!)** *this list is creating watchers, therefore on some OS, directories which contain this files/folders may be blocked for rename or delete till template target files/folders will not be removed from `watchedFiles` list.*  
 
 - `type:"cached"`  
 *(Default value)*  
