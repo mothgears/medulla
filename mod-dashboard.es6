@@ -4,34 +4,16 @@ module.exports.medullaMaster = io=>{
 		let data = JSON.stringify(io.medullaStats);
 		io.sendMessage({type:'dashboard_data', data});
 	});
-
-	/*medulla.ws.on('connection', ws=>{
-
-		ws.on('message', msg=>{
-			if (msg === 'MEDSIG_RESTART') {
-				if (restart) {
-					restart(()=>{
-						let cids = Object.keys(medulla.wsClients);
-						for (let id of cids) medulla.wsClients[id].send('MEDSIG_REFRESH');
-					});
-					restart = null;
-				} else {
-					let cids = Object.keys(medulla.wsClients);
-					for (let id of cids) medulla.wsClients[id].send('MEDSIG_REFRESH');
-				}
-			} else if (msg === 'MEDSIG_PAGELOADED') {
-				if (error) sendError(error);
-			}
-		});
-
-	});*/
 };
 
 module.exports.medullaWorker = io=>{
 	const { URL , URLSearchParams } = require('url');
 
-	let data = {},
-	    need_resp = null;
+	let
+		data = {},
+		need_resp = null;
+
+	const PW = io.settings.dashboardPassword;
 
 	process.on('message', (msg)=>{
 		if (msg.type === 'dashboard_data') {
@@ -39,17 +21,21 @@ module.exports.medullaWorker = io=>{
 		}
 
 		if (need_resp) {
+			let worktime = ((Date.now() / 1000) - data.medullaLauchedTS) / 60;
 			let output = `
 			<html>
 				<body>
 					Server lauched on: ${data.medullaLauched}<br>
 					Workers lauched on: ${data.workersLauched}<br>
 					<br>
-					Total workers lauched: ${data.totalWorkers}<br><br>
-					Requests: ${data.requests}<br>
-					Requests per minute: ${data.requests / data.worktime}<br>
-					(updated every minute)
+					Total workers lauched: ${data.totalWorkers}<br>
+					<br>
+					Requests: ${data.requests} (updated once a minute)<br>
+					Requests per minute: ${(data.requests / worktime).toFixed(2)}<br>
+					<br>
+					<span id="button_stop" style="cursor: pointer"><u>Stop/Restart server</u></span>
 				</body>
+				<script src="dashboard.js${PW?'?password='+PW:''}"></script>
 			</html>
 			`;
 			need_resp.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
@@ -59,19 +45,52 @@ module.exports.medullaWorker = io=>{
 		}
 	});
 
-	io.routes['dashboard'] = (request, response, url)=>{
-		let urlSearchParams = new URLSearchParams(url.search);
-
+	const noAccess = (urlSearchParams, response)=>{
 		let pw = urlSearchParams.get('password');
 		if (pw !== io.settings.dashboardPassword) {
 			response.writeHeader(403, {"Content-Type": "text/html; charset=utf-8"});
 			response.write('Forbidden.');
 			response.end();
-			return false;
+			return true;
+		}
+		return false;
+	};
+
+	io.routes['dashboard'] = (request, response, url)=>{
+		let urlSearchParams = new URLSearchParams(url.search);
+		if (noAccess(urlSearchParams, response)) return;
+
+		if (urlSearchParams.get('do') === 'stop') {
+			io.stopServer();
 		} else {
 			need_resp = response;
 			process.send({type:'dashboard_get'});
 			return true; //wait
 		}
+	};
+
+	const JS = ()=>{
+		let href=`/dashboard?do=stop${PW?'&password='+PW:''}`;
+		document.querySelector('#button_stop').addEventListener('click', ()=>{
+			fetch(href, {
+				credentials: 'same-origin',
+				headers: {
+					"X-Requested-With": "XMLHttpRequest",
+					"Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+				},
+				method: 'GET'/*,
+				 body: JSON.stringify(params)*/
+			}).then(function(r) {
+				console.log('Stopped');
+				location.reload();
+			});
+		});
+	};
+	io.routes['dashboard.js'] = (request, response, url)=>{
+		let urlSearchParams = new URLSearchParams(url.search);
+		if (noAccess(urlSearchParams, response)) return;
+
+		response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
+		response.write(`const PW=${PW?'"'+PW+'"':null}; (${JS.toString()})();`);
 	};
 };

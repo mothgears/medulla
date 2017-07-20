@@ -9,5 +9,6 @@ require('../index.es6')({
 	platforms :{ //platforms settings
 		"win32" : {forcewatch:false},
 		"linux" : {forcewatch:true}
-	}
+	}/*,
+	dashboardPassword:'saturn'*/
 });
