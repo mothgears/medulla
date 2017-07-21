@@ -35,7 +35,7 @@ module.exports.medullaWorker = io=>{
 					<br>
 					<span id="button_stop" style="cursor: pointer"><u>Stop/Restart server</u></span>
 				</body>
-				<script src="dashboard.js${PW?'?password='+PW:''}"></script>
+				<script src="medulla_dashboard.js${PW?'?password='+PW:''}"></script>
 			</html>
 			`;
 			need_resp.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
@@ -56,7 +56,7 @@ module.exports.medullaWorker = io=>{
 		return false;
 	};
 
-	io.routes['dashboard'] = (request, response, url)=>{
+	io.routes['medulla_dashboard'] = (request, response, url)=>{
 		let urlSearchParams = new URLSearchParams(url.search);
 		if (noAccess(urlSearchParams, response)) return;
 
@@ -70,7 +70,7 @@ module.exports.medullaWorker = io=>{
 	};
 
 	const JS = ()=>{
-		let href=`/dashboard?do=stop${PW?'&password='+PW:''}`;
+		let href=`/medulla_dashboard?do=stop${PW?'&password='+PW:''}`;
 		document.querySelector('#button_stop').addEventListener('click', ()=>{
 			fetch(href, {
 				credentials: 'same-origin',
@@ -86,7 +86,7 @@ module.exports.medullaWorker = io=>{
 			});
 		});
 	};
-	io.routes['dashboard.js'] = (request, response, url)=>{
+	io.routes['medulla_dashboard.js'] = (request, response, url)=>{
 		let urlSearchParams = new URLSearchParams(url.search);
 		if (noAccess(urlSearchParams, response)) return;
 

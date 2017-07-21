@@ -85,8 +85,8 @@ Async logging to file for "console.log()", "console.warn()" and "console.error()
   - `separatedTypes: false`  
   split log into several files by level.
   
-- `watchIgnore: {f=>f.endsWith('___jb_tmp___'), f=>f.endsWith('___jb_old___')}`  
-Rules for ignoring files when watching (does not apply to `required` modules). 
+- `watchIgnore: {...}`  
+Rules for ignoring files when watching
 Represents a list of functions which return true if need ignore this file or directory.
 
 - `dashboardPassword: null`  
@@ -187,7 +187,7 @@ or for start the server with dev plugins, run it with parameter:
 ```
 node server.js -dev
 ```
-and open the site in browser (e.g. localhost:3000)
+and open the site in browser (e.g. `localhost:3000`)
 
 #### Common variables
 You may share variables between workers using `medulla.common` method like this:
@@ -210,7 +210,9 @@ module.exports.onRequest = (request, response)=>{
 };
 ```
 #### Dashboard
-You may see server status at `http://yoursite/dashboard` link
+You may see server status, or stop server use link: 
+`http://yoursite/medulla_dashboard` (e.g. `localhost:3000/medulla_dashboard`)  
+(or `http://yoursite/medulla_dashboard?password=yourpass` if `settings.dashboardPassword` is set)
 
 #### Console commands
   - `version` - show module current version  

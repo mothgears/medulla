@@ -22,7 +22,11 @@ module.exports = customSettings=>{
 		watch             : true,
 		watchIgnore       : [
 			f=>f.endsWith('___jb_tmp___'),
-			f=>f.endsWith('___jb_old___')
+			f=>f.endsWith('___jb_old___'),
+			f=>{
+				let mind = f.lastIndexOf('/medulla/');
+				return (mind>=0 && mind + 8 === f.lastIndexOf('/'));
+			}
 		],
 		devMode           : process.argv.indexOf('-dev') >= 0,
 		proxyCookieDomain : 'localhost',
@@ -34,6 +38,12 @@ module.exports = customSettings=>{
 		},
 		dashboardPassword : null
 	};
+
+	let protectedSettings = [
+		'dashboardPassword',
+		'serverDir',
+		'serverApp'
+	];
 
 	//GLOBAL SERVER INTERFACE
 	global.medulla = {};
@@ -256,7 +266,14 @@ module.exports = customSettings=>{
 			if (p.medullaWorker) workerPlugins.push(plugin);
 			if (p.medullaClient) toClient(p.medullaClient)
 		}
-		pluginsJS = 'window.medulla = {settings:'+JSON.stringify(settings)+'};'+pluginsJS;
+
+		let publicSettings = {};
+		let settingsKeys = Object.keys(settings);
+		for (let sk of settingsKeys) {
+			if (protectedSettings.indexOf(sk) < 0)
+				publicSettings[sk] = settings[sk];
+		}
+		pluginsJS = 'window.medulla = {settings:'+JSON.stringify(publicSettings)+'};'+pluginsJS;
 
 		process.on('uncaughtException', err=>{
 			if (err.code === 'EPERM' && err.syscall === 'Error watching file for changes:') {
@@ -789,7 +806,7 @@ module.exports = customSettings=>{
 			filepath = mod_path.resolve(filepath).replace(/\\/g, '/');
 
 			//IGNORING
-			if (!code) for (let ign of settings.watchIgnore) if (ign(filepath)) return;
+			/*if (!code)*/ for (let ign of settings.watchIgnore) if (ign(filepath)) return;
 			//------
 
 			if (process.env.mainWorker === '1') watchedFiles[filepath] = {

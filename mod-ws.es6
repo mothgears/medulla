@@ -38,7 +38,7 @@ module.exports.medullaMaster = io=>{
 //----------------------------------------------------------------------------------------------------------------------
 module.exports.medullaClient = ()=>{
 	if (window.medulla.settings.useWebSocket) {
-		window.medulla.ws = window.medulla.ws || new WebSocket('ws://localhost:'+window.medulla.settings.wsPort);
+		window.medulla.ws = window.medulla.ws || new WebSocket('ws://'+window.location.hostname+':'+window.medulla.settings.wsPort);
 		window.medulla.ws.addEventListener('message', function (event) {
 			let msg = event.data;
 			if (msg.startsWith('MEDSIG_WSID@')) {

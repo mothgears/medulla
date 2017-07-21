@@ -1,5 +1,15 @@
 # Changelog
 
+## V 0.7.2
+##### Changes
+- now `watchIgnore` is also applied to required modules
+- medulla files excluded from watching
+- dashboard url changed to `medulla_dashboard`
+- now imbedded webSocket may be used not only with 'localhost'
+
+##### Fixes
+- fixed the protect of dashboard password
+
 ## V 0.7.1
 ##### Improvements
 - dashboard updated
