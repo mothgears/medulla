@@ -18,7 +18,7 @@ module.exports = customSettings=>{
 		hosts             : {},
 		platforms         : {},
 		forcewatch        : false,
-		plugins           : {'./mod-ws.es6':{}, './mod-dashboard.es6':{}},
+		plugins           : {'./mod-ws.es6':{}/*, './mod-dashboard.es6':{}*/},
 		watch             : true,
 		watchIgnore       : [
 			f=>f.endsWith('___jb_tmp___'),
@@ -926,6 +926,42 @@ module.exports = customSettings=>{
 		}
 		if (mm.onRequest) handlerRequest = mm.onRequest;
 
+		const createNode = (route, tokens, node = routes) =>{
+			let token = tokens.shift();
+			if (token.startsWith('{') && token.endsWith('}')) {
+				//let v = token.substring(1, token.length-1);
+				token = '$';
+			}
+
+			if (tokens.length > 0) {
+				if (node[token]) {
+					node = node[token];
+					createNode(route, tokens, node);
+				} else {
+					node = node[token] = {};
+					createNode(route, tokens, node);
+				}
+			} else {
+				if (node[token]) {
+					node = node[token];
+					node[''] = route;
+ 				} else {
+					node = node[token] = {};
+					node[''] = route;
+				}
+			}
+		};
+
+		if (mm.routes) {
+			let keys = Object.keys(mm.routes);
+			for (let r of keys) {
+				let tokens = r.split('/');
+				createNode(mm.routes[r], tokens);
+			}
+		}
+
+		if (process.env.mainWorker === '1') console.info(routes);
+
 		const installModule = filepath=>{
 			let code = null;
 			try {
@@ -1018,6 +1054,33 @@ module.exports = customSettings=>{
 			requests = 0;
 		}, 60000);
 
+		const isRoute = (routepath, node=routes, v = [])=>{
+			let token = routepath.shift();
+
+			//Search Token
+			if (node = node[token]) {
+				if (routepath.length > 0) {
+					return isRoute(routepath, node);
+				} else {
+					if (node[''] && typeof node[''] === 'function') {
+						return node[''](...v);
+					} else return null;
+				}
+			} else if (node = node['$']) {
+				v.push(token);
+
+				if (routepath.length > 0) {
+					return isRoute(routepath, node, v);
+				} else {
+					if (node[''] && typeof node[''] === 'function') {
+						return node[''](...v);
+					} else return null;
+				}
+			}
+
+			return null;
+		};
+
 		//LAUNCH
 		mod_http.createServer((request, response)=>{
 			requests++;
@@ -1036,8 +1099,12 @@ module.exports = customSettings=>{
 			 response.write(process.env.pluginsJS);
 			 } else*/
 
-			if (routes[path]) {
-				wait = routes[path](request, response, parsedURL);
+			let routepath = path.split('/');
+			let route = null;
+
+			if (route = isRoute(routepath)) {
+				//wait = routes[path](request, response, parsedURL);
+
 			} else if (cache[path]) {
 				ext = mod_path.extname(cache[path].srcPath).slice(1);
 				mt = (ext && mimeTypes[ext]) ? mimeTypes[ext] : mt;
