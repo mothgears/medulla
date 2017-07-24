@@ -1058,7 +1058,9 @@ module.exports = customSettings=>{
 			let token = routepath.shift();
 
 			//Search Token
-			if (node = node[token]) {
+			if (node[token]) {
+				node = node[token];
+
 				if (routepath.length > 0) {
 					return isRoute(routepath, node);
 				} else {
@@ -1066,7 +1068,8 @@ module.exports = customSettings=>{
 						return node[''](...v);
 					} else return null;
 				}
-			} else if (node = node['$']) {
+			} else if (node['$']) {
+				node = node['$'];
 				v.push(token);
 
 				if (routepath.length > 0) {
@@ -1077,7 +1080,6 @@ module.exports = customSettings=>{
 					} else return null;
 				}
 			}
-
 			return null;
 		};
 
@@ -1103,7 +1105,17 @@ module.exports = customSettings=>{
 			let route = null;
 
 			if (route = isRoute(routepath)) {
-				//wait = routes[path](request, response, parsedURL);
+				if (route instanceof Promise) {
+					wait = true;
+					route.then(r=>{
+						response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
+						response.write(r);
+						response.end();
+					});
+				} else if (typeof route === 'string') {
+					response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
+					response.write(route);
+				}
 
 			} else if (cache[path]) {
 				ext = mod_path.extname(cache[path].srcPath).slice(1);
