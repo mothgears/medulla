@@ -1,7 +1,12 @@
 # Changelog
 
 ## Dev
-- routes
+##### Changes
+- `isPage` renamed to `includePlugins`
+
+##### Improvements
+- added router
+- added global `includePlugins` to settings
 
 ## V 0.7.2
 ##### Changes

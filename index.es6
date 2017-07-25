@@ -18,7 +18,7 @@ module.exports = customSettings=>{
 		hosts             : {},
 		platforms         : {},
 		forcewatch        : false,
-		plugins           : {'./mod-ws.es6':{}/*, './mod-dashboard.es6':{}*/},
+		plugins           : {'./mod-ws.es6':{}, './mod-dashboard.es6':{}},
 		watch             : true,
 		watchIgnore       : [
 			f=>f.endsWith('___jb_tmp___'),
@@ -36,7 +36,8 @@ module.exports = customSettings=>{
 			separatedTypes: false,
 			dir: process.cwd()
 		},
-		dashboardPassword : null
+		dashboardPassword : null,
+		includePlugins    : true
 	};
 
 	let protectedSettings = [
@@ -474,7 +475,7 @@ module.exports = customSettings=>{
 												type   : 'updateCache',
 												url    : fileparam.params.url || filepath,
 												path   : filepath,
-												isPage : fileparam.params.isPage
+												includePlugins : fileparam.params.includePlugins
 											});
 										} catch(e){}
 									}
@@ -586,11 +587,12 @@ module.exports = customSettings=>{
 
 	} else {
 		//LIBS
-		const getRequires = require('./detectRequires.es6');
-		const mod_http = require('http');
-		//const mod_url  = require('url');
-		const mod_url = require('url');
-		const mod_zlib = require('zlib');
+		const
+			getRequires = require('./detectRequires.es6'),
+			mod_http = require('http'),
+			mod_url = require('url'),
+			mod_zlib = require('zlib'),
+			mod_qs = require('querystring');
 
 		//
 		let handlerRequest = null,
@@ -612,6 +614,38 @@ module.exports = customSettings=>{
 			else process.env.pluginsJS += func;
 		};
 
+		//ROUTER
+		const createNode = (route, tokens, node = routes) =>{
+			let token = tokens.shift();
+			if (token.startsWith('{') && token.endsWith('}')) {
+				//let v = token.substring(1, token.length-1);
+				token = '$';
+			}
+
+			if (tokens.length > 0) {
+				if (node[token]) {
+					node = node[token];
+					createNode(route, tokens, node);
+				} else {
+					node = node[token] = {};
+					createNode(route, tokens, node);
+				}
+			} else {
+				if (node[token]) {
+					node = node[token];
+					node[''] = route;
+				} else {
+					node = node[token] = {};
+					node[''] = route;
+				}
+			}
+		};
+
+		const addRoute = (url, handler)=>{
+			let tokens = url.split('/');
+			createNode(handler, tokens);
+		};
+
 		//PLUGINS
 		let workerPlugins = JSON.parse(process.env.workerPlugins),
 			cacheModificators = [],
@@ -628,8 +662,8 @@ module.exports = customSettings=>{
 					settings,
 					toClient,
 					getRequires,
-					routes,
-					stopServer
+					stopServer,
+					addRoute
 				};
 				p.medullaWorker(io);
 				if (io.cacheModificator) cacheModificators.push(io.cacheModificator);
@@ -738,7 +772,7 @@ module.exports = customSettings=>{
 							if (typeof content === 'string') cache[msg.url] = {
 								content: content,
 								srcPath: msg.path,
-								isPage : msg.isPage
+								includePlugins : msg.includePlugins
 							};
 							for (let h of handlersCacheModify) h();
 						});
@@ -819,7 +853,7 @@ module.exports = customSettings=>{
 			if (params) {
 				if      (params.type === 'file') files[params.url || filepath] = {
 					srcPath: filepath,
-					isPage : params.isPage
+					includePlugins : params.includePlugins
 				};
 				else if (params.type === 'cached') {
 					try {
@@ -828,7 +862,7 @@ module.exports = customSettings=>{
 						if (typeof content === 'string') cache[params.url || filepath] = {
 							content: content,
 							srcPath: filepath,
-							isPage : params.isPage
+							includePlugins : params.includePlugins
 						};
 					} catch (err) {
 						console.warn(`"${filepath}" not found`);
@@ -926,41 +960,11 @@ module.exports = customSettings=>{
 		}
 		if (mm.onRequest) handlerRequest = mm.onRequest;
 
-		const createNode = (route, tokens, node = routes) =>{
-			let token = tokens.shift();
-			if (token.startsWith('{') && token.endsWith('}')) {
-				//let v = token.substring(1, token.length-1);
-				token = '$';
-			}
-
-			if (tokens.length > 0) {
-				if (node[token]) {
-					node = node[token];
-					createNode(route, tokens, node);
-				} else {
-					node = node[token] = {};
-					createNode(route, tokens, node);
-				}
-			} else {
-				if (node[token]) {
-					node = node[token];
-					node[''] = route;
- 				} else {
-					node = node[token] = {};
-					node[''] = route;
-				}
-			}
-		};
-
 		if (mm.routes) {
 			let keys = Object.keys(mm.routes);
-			for (let r of keys) {
-				let tokens = r.split('/');
-				createNode(mm.routes[r], tokens);
-			}
+			for (let r of keys) addRoute(r, mm.routes[r]);
 		}
-
-		if (process.env.mainWorker === '1') console.info(routes);
+		//if (process.env.mainWorker === '1') console.info(routes);
 
 		const installModule = filepath=>{
 			let code = null;
@@ -1065,7 +1069,7 @@ module.exports = customSettings=>{
 					return isRoute(routepath, node);
 				} else {
 					if (node[''] && typeof node[''] === 'function') {
-						return node[''](...v);
+						return data=>node[''](...v, data);
 					} else return null;
 				}
 			} else if (node['$']) {
@@ -1076,11 +1080,43 @@ module.exports = customSettings=>{
 					return isRoute(routepath, node, v);
 				} else {
 					if (node[''] && typeof node[''] === 'function') {
-						return node[''](...v);
+						return data=>node[''](...v, data);
 					} else return null;
 				}
 			}
 			return null;
+		};
+
+		const routeWork = (route, request, response, GET, POST)=> {
+			let wait = false;
+
+			route = route({request, GET, POST});
+
+			if (route instanceof Promise) {
+				wait = true;
+				route.then(r=>{
+					if (typeof r === 'string') r = {content:r};
+					response.writeHeader(r.code || 200, r.headers || {"Content-Type": "text/html; charset=utf-8"});
+					if (r.code === 404 && r.content === undefined) r.content = '404 Not Found';
+					response.write(r.content || '');
+					if (r.includePlugins === undefined) r.includePlugins = settings.includePlugins;
+					if (r.includePlugins) {
+						response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+					}
+					response.end();
+				});
+			} else {
+				if (typeof route === 'string') route = {content:route};
+				response.writeHeader(route.code || 200, route.headers || {"Content-Type": "text/html; charset=utf-8"});
+				if (route.code === 404 && route.content === undefined) route.content = '404 Not Found';
+				response.write(route.content || '');
+				if (route.includePlugins === undefined) route.includePlugins = settings.includePlugins;
+				if (route.includePlugins) {
+					response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+				}
+			}
+
+			return wait;
 		};
 
 		//LAUNCH
@@ -1088,7 +1124,6 @@ module.exports = customSettings=>{
 			requests++;
 
 			let wait = false;
-
 			let parsedURL = mod_url.parse(request.url);
 
 			let path = parsedURL.pathname.slice(1);
@@ -1097,24 +1132,33 @@ module.exports = customSettings=>{
 			let cnt  = null;
 
 			/*if (path === 'medulla-plugins.js') {
-			 response.writeHeader(200, {"Content-Type": (mt?mt:"application/javascript")+"; charset=utf-8"});
-			 response.write(process.env.pluginsJS);
-			 } else*/
+				response.writeHeader(200, {"Content-Type": (mt?mt:"application/javascript")+"; charset=utf-8"});
+				response.write(process.env.pluginsJS);
+			} else*/
 
 			let routepath = path.split('/');
 			let route = null;
 
 			if (route = isRoute(routepath)) {
-				if (route instanceof Promise) {
+				let
+					usp  = new mod_url.URLSearchParams(parsedURL.search),
+					GET  = {},
+					POST = {};
+
+				if (request.method === 'GET') {
+					usp.forEach((value, name)=>{GET[name] = value;});
+					wait = routeWork(route, request, response, GET, POST);
+				} else if (request.method === 'POST') {
 					wait = true;
-					route.then(r=>{
-						response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
-						response.write(r);
-						response.end();
+					let body = '';
+					request.on('data', data=>{
+						body += data;
+						if (body.length > 1e6) request.connection.destroy();
 					});
-				} else if (typeof route === 'string') {
-					response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
-					response.write(route);
+					request.on('end', ()=>{
+						POST = mod_qs.parse(body);
+						if (!routeWork(route, request, response, GET, POST)) response.end();
+					});
 				}
 
 			} else if (cache[path]) {
@@ -1123,7 +1167,7 @@ module.exports = customSettings=>{
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.write(cache[path].content);
-				if (cache[path].isPage) {
+				if (cache[path].includePlugins) {
 					response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
 				}
 			} else if (files[path]) {
@@ -1132,7 +1176,7 @@ module.exports = customSettings=>{
 					let content = fs.readFileSync(files[path].srcPath);
 					response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 					response.write(content);
-					if (files[path].isPage) {
+					if (files[path].includePlugins) {
 						response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
 					}
 				} catch (e) {
@@ -1171,7 +1215,7 @@ module.exports = customSettings=>{
 						let targetRequest = mod_http.request(options, targetResponse=>{
 
 							let modify = (
-									result.isPage &&
+									result.includePlugins &&
 									targetResponse.headers['content-type'] &&
 									targetResponse.headers['content-type'].substr(0,9) === 'text/html'
 								),

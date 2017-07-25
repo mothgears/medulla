@@ -92,6 +92,9 @@ Represents a list of functions which return true if need ignore this file or dir
 - `dashboardPassword: null`  
 Password for dashboard, if set, use: `http://yoursite/dashboard?password=yourpass`
 
+- `includeSettings: true`  
+if set true, plugin client code by default will be included to all routes
+
 #### App main module (entry point)
 Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list:
 ```es6
@@ -159,7 +162,30 @@ module.exports.mimeTypes : {
 },
 ```
 
-Describe the worker function:
+Describe routes
+```es6
+//myApp.js
+
+module.exports.routes = {
+    '':()=>{ //index page
+        return '<html><body>Hellow World!</body></html>';
+    },
+    
+    'about/{beast}':(beast)=>{
+        if (beast === 'rat') return 'rat is small';
+        else if (beast === 'horse') return 'horse is big';
+        else return {code:404}
+    }
+};
+```
+if you need 'get' data in route like `mysite.net/user/marko?info=age` use:
+```es6
+'user/{name}':(name, {GET})=>{ //index page
+    return users[name][GET.info];
+},
+```
+
+**also** you may describe the worker function for manually request handling:
 ```es6
 //myApp.js
 
@@ -167,10 +193,10 @@ module.exports.onRequest = (request, response)=>{
     if (request.url !== '/') return 404;
 
     response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
-    response.write('<html><body>It works!</body></html>');
+    response.write('<html><body>Hellow World!</body></html>');
     
     return 1; 
-    //1   - for including medulla-plugins code in responce body (use with page html)
+    //1   - for including medulla-plugins code in responce body (use with html pages)
     //404 - for "404 Not Found"
     //0   - pure responce, use in other cases (json or other api data)
     //{target:"mysite.net", isPage:(request.url === '/')} - for proxying this request
@@ -198,7 +224,7 @@ module.exports.onRequest = (request, response)=>{
 
     //Counter of requests
     medulla.common(storage=>{
-        storage.sharedVariable = storage.sharedVariable || 0;
+        storage.counter = storage.sharedVariable || 0;
         storage.sharedVariable++;
         console.info('Requests: ' + storage.sharedVariable)
     });

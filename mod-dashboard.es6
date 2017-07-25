@@ -7,8 +7,6 @@ module.exports.medullaMaster = io=>{
 };
 
 module.exports.medullaWorker = io=>{
-	const { URL , URLSearchParams } = require('url');
-
 	let
 		data = {},
 		need_resp = null;
@@ -38,59 +36,63 @@ module.exports.medullaWorker = io=>{
 				<script src="medulla_dashboard.js${PW?'?password='+PW:''}"></script>
 			</html>
 			`;
-			need_resp.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
-			need_resp.write(output);
-			need_resp.end();
+			need_resp({content:output, includePlugins:false});
 			need_resp = null;
 		}
 	});
 
-	const noAccess = (urlSearchParams, response)=>{
-		let pw = urlSearchParams.get('password');
-		if (pw !== io.settings.dashboardPassword) {
-			response.writeHeader(403, {"Content-Type": "text/html; charset=utf-8"});
-			response.write('Forbidden.');
-			response.end();
-			return true;
-		}
-		return false;
+	const noAccess = (password, response)=>{
+		let pw = password || null;
+		if (pw !== io.settings.dashboardPassword) return {
+			code: 403,
+			content: 'Forbidden.',
+			includePlugins: false
+		};
+		return null;
 	};
 
-	io.routes['medulla_dashboard'] = (request, response, url)=>{
-		let urlSearchParams = new URLSearchParams(url.search);
-		if (noAccess(urlSearchParams, response)) return;
+	io.addRoute('medulla_dashboard', ({GET, POST})=>{
+		let noAcc = noAccess(GET.password || POST.password);
+		if (noAcc) return noAcc;
 
-		if (urlSearchParams.get('do') === 'stop') {
+		if (POST.do === 'stop') {
 			io.stopServer();
+			return '';
 		} else {
-			need_resp = response;
-			process.send({type:'dashboard_get'});
-			return true; //wait
+			need_resp = true;
+			return new Promise(done=>{
+				process.send({type:'dashboard_get'});
+				need_resp = done;
+			});
 		}
-	};
+	});
 
 	const JS = ()=>{
-		let href=`/medulla_dashboard?do=stop${PW?'&password='+PW:''}`;
 		document.querySelector('#button_stop').addEventListener('click', ()=>{
-			fetch(href, {
+			fetch(`/medulla_dashboard`, {
 				credentials: 'same-origin',
 				headers: {
 					"X-Requested-With": "XMLHttpRequest",
 					"Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
 				},
-				method: 'GET'/*,
-				 body: JSON.stringify(params)*/
-			}).then(function(r) {
+				method: 'POST',
+				body: `do=stop${PW?'&password='+PW:''}`
+			}).then(r=>{
 				console.log('Stopped');
 				location.reload();
+			}).catch(r=>{
+				console.log('RRR');
 			});
 		});
 	};
-	io.routes['medulla_dashboard.js'] = (request, response, url)=>{
-		let urlSearchParams = new URLSearchParams(url.search);
-		if (noAccess(urlSearchParams, response)) return;
 
-		response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
-		response.write(`const PW=${PW?'"'+PW+'"':null}; (${JS.toString()})();`);
-	};
+	io.addRoute('medulla_dashboard.js', ({GET})=>{
+		let noAcc = noAccess(GET.password);
+		if (noAcc) return noAcc;
+
+		return {
+			content: `const PW=${PW?'"'+PW+'"':null}; (${JS.toString()})();`,
+			includePlugins: false
+		};
+	});
 };
