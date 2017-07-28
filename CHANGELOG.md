@@ -2,7 +2,7 @@
 
 ## Dev
 ##### Changes
-- `isPage` renamed to `includePlugins`
+- **(!)** `isPage` renamed to `includePlugins`
 
 ##### Improvements
 - added router

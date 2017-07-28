@@ -9,6 +9,7 @@ and server will do restart workers when detect changes in app modules,
 and update cache when changed scripts (files with [prop](#main-module) `type:cached`).
 - Can work as a **proxy server** and forwarding requests to the specified domain.
 - Supports the **logging to files** for commands `console.log()`, `consol.warn()`, `console.error()`.
+- Has **router**
 - Has [plugin](https://www.npmjs.com/package/medulla-hotcode) for **hot reload css-slyles, js-scripts, and auto refreshing page** even as proxy (external dev-server mode).
 
 **(!)** *module in development, this is unstable version with incomplete functional.*  
@@ -140,7 +141,7 @@ module.exports.watchedFiles = {
 Add file content to variable (for each worker).
 - `type:"file"`  
 Will read file from disc in every request.  
-- `isPage:false`  
+- `includePlugins:false`  
 If set is true, medulla js code (plugins) will be included to this page (use for all html-pages).
   
 Default url is path to file, but you may specify it directly use `url` param.  
@@ -199,7 +200,7 @@ module.exports.onRequest = (request, response)=>{
     //1   - for including medulla-plugins code in responce body (use with html pages)
     //404 - for "404 Not Found"
     //0   - pure responce, use in other cases (json or other api data)
-    //{target:"mysite.net", isPage:(request.url === '/')} - for proxying this request
+    //{target:"mysite.net", includePlugins:(request.url === '/')} - for proxying this request
 };
 ```
 
