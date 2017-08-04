@@ -18,7 +18,7 @@ module.exports = customSettings=>{
 		hosts             : {},
 		platforms         : {},
 		forcewatch        : false,
-		plugins           : {'./mod-ws.es6':{}, './mod-dashboard.es6':{}},
+		plugins           : {'./mod-ws.es6':{}/*, './mod-dashboard.es6':{}*/},
 		watch             : true,
 		watchIgnore       : [
 			f=>f.endsWith('___jb_tmp___'),
@@ -585,23 +585,21 @@ module.exports = customSettings=>{
 
 		startServer('medulla started');
 
+	//------------------------------------------------------------------------------------------------------------------
 	} else {
-		//LIBS
 		const
 			getRequires = require('./detectRequires.es6'),
 			mod_http = require('http'),
 			mod_url = require('url'),
-			mod_zlib = require('zlib'),
-			mod_qs = require('querystring');
+			mod_zlib = require('zlib');
+			//mod_qs = require('querystring');
 
-		//
-		let handlerRequest = null,
-			watchedFiles   = {},
-			cache          = {},
-			files          = {},
-			templates      = [],
-			routes         = [],
-			clientHTML     = '';
+		let handlersRequest = [],
+			watchedFiles    = {},
+			cache           = {},
+			files           = {},
+			templates       = [],
+			clientHTML      = '';
 
 		//TO CLIENT
 		const toClient = func=>{
@@ -612,38 +610,6 @@ module.exports = customSettings=>{
 			}
 			else if (func[0] === '<') clientHTML += func;
 			else process.env.pluginsJS += func;
-		};
-
-		//ROUTER
-		const createNode = (route, tokens, node = routes) =>{
-			let token = tokens.shift();
-			if (token.startsWith('{') && token.endsWith('}')) {
-				//let v = token.substring(1, token.length-1);
-				token = '$';
-			}
-
-			if (tokens.length > 0) {
-				if (node[token]) {
-					node = node[token];
-					createNode(route, tokens, node);
-				} else {
-					node = node[token] = {};
-					createNode(route, tokens, node);
-				}
-			} else {
-				if (node[token]) {
-					node = node[token];
-					node[''] = route;
-				} else {
-					node = node[token] = {};
-					node[''] = route;
-				}
-			}
-		};
-
-		const addRoute = (url, handler)=>{
-			let tokens = url.split('/');
-			createNode(handler, tokens);
 		};
 
 		//PLUGINS
@@ -662,12 +628,13 @@ module.exports = customSettings=>{
 					settings,
 					toClient,
 					getRequires,
-					stopServer,
-					addRoute
+					stopServer/*,
+					addRoute*/
 				};
 				p.medullaWorker(io);
-				if (io.cacheModificator) cacheModificators.push(io.cacheModificator);
+				if (io.cacheModificator) cacheModificators  .push(io.cacheModificator);
 				if (io.onCacheModify)    handlersCacheModify.push(io.onCacheModify);
+				if (io.onRequest)        handlersRequest    .push(io.onRequest);
 			}
 		}
 
@@ -958,13 +925,7 @@ module.exports = customSettings=>{
 				}*/
 			}
 		}
-		if (mm.onRequest) handlerRequest = mm.onRequest;
-
-		if (mm.routes) {
-			let keys = Object.keys(mm.routes);
-			for (let r of keys) addRoute(r, mm.routes[r]);
-		}
-		//if (process.env.mainWorker === '1') console.info(routes);
+		//if (mm.onRequest) handlersRequest.push(mm.onRequest);
 
 		const installModule = filepath=>{
 			let code = null;
@@ -1058,67 +1019,6 @@ module.exports = customSettings=>{
 			requests = 0;
 		}, 60000);
 
-		const isRoute = (routepath, node=routes, v = [])=>{
-			let token = routepath.shift();
-
-			//Search Token
-			if (node[token]) {
-				node = node[token];
-
-				if (routepath.length > 0) {
-					return isRoute(routepath, node);
-				} else {
-					if (node[''] && typeof node[''] === 'function') {
-						return data=>node[''](...v, data);
-					} else return null;
-				}
-			} else if (node['$']) {
-				node = node['$'];
-				v.push(token);
-
-				if (routepath.length > 0) {
-					return isRoute(routepath, node, v);
-				} else {
-					if (node[''] && typeof node[''] === 'function') {
-						return data=>node[''](...v, data);
-					} else return null;
-				}
-			}
-			return null;
-		};
-
-		const routeWork = (route, request, response, GET, POST)=> {
-			let wait = false;
-
-			route = route({request, GET, POST});
-
-			if (route instanceof Promise) {
-				wait = true;
-				route.then(r=>{
-					if (typeof r === 'string') r = {content:r};
-					response.writeHeader(r.code || 200, r.headers || {"Content-Type": "text/html; charset=utf-8"});
-					if (r.code === 404 && r.content === undefined) r.content = '404 Not Found';
-					response.write(r.content || '');
-					if (r.includePlugins === undefined) r.includePlugins = settings.includePlugins;
-					if (r.includePlugins) {
-						response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
-					}
-					response.end();
-				});
-			} else {
-				if (typeof route === 'string') route = {content:route};
-				response.writeHeader(route.code || 200, route.headers || {"Content-Type": "text/html; charset=utf-8"});
-				if (route.code === 404 && route.content === undefined) route.content = '404 Not Found';
-				response.write(route.content || '');
-				if (route.includePlugins === undefined) route.includePlugins = settings.includePlugins;
-				if (route.includePlugins) {
-					response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
-				}
-			}
-
-			return wait;
-		};
-
 		//LAUNCH
 		mod_http.createServer((request, response)=>{
 			requests++;
@@ -1136,49 +1036,23 @@ module.exports = customSettings=>{
 				response.write(process.env.pluginsJS);
 			} else*/
 
-			let routepath = path.split('/');
-			let route = null;
+			//let routepath = path.split('/');
+			//let route = null;
 
-			if (route = isRoute(routepath)) {
-				let
-					usp  = new mod_url.URLSearchParams(parsedURL.search),
-					GET  = {},
-					POST = {};
-
-				if (request.method === 'GET') {
-					usp.forEach((value, name)=>{GET[name] = value;});
-					wait = routeWork(route, request, response, GET, POST);
-				} else if (request.method === 'POST') {
-					wait = true;
-					let body = '';
-					request.on('data', data=>{
-						body += data;
-						if (body.length > 1e6) request.connection.destroy();
-					});
-					request.on('end', ()=>{
-						POST = mod_qs.parse(body);
-						if (!routeWork(route, request, response, GET, POST)) response.end();
-					});
-				}
-
-			} else if (cache[path]) {
+			if (cache[path]) {
 				ext = mod_path.extname(cache[path].srcPath).slice(1);
 				mt = (ext && mimeTypes[ext]) ? mimeTypes[ext] : mt;
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.write(cache[path].content);
-				if (cache[path].includePlugins) {
-					response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
-				}
+				if (cache[path].includePlugins) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
 			} else if (files[path]) {
 				if (!mt) mt = nomt(ext);
 				try {
 					let content = fs.readFileSync(files[path].srcPath);
 					response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 					response.write(content);
-					if (files[path].includePlugins) {
-						response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
-					}
+					if (files[path].includePlugins) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
 				} catch (e) {
 					response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
 					response.write('ERROR: Registred file not found on server.');
@@ -1187,81 +1061,95 @@ module.exports = customSettings=>{
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.write(cnt);
-			} else if (handlerRequest) {
-				try {
-					let result = handlerRequest(request, response);
-					if (result === 404) {
-						response.writeHeader(404, {"Content-Type": "text/html; charset=utf-8"});
-						response.write('404 Not Found');
-						response.write(`<script>${process.env.pluginsJS}</script>`);
-					}
-					else if (result === 1) {
-						response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
-					}
-					else if (typeof result === 'object') {
-						wait = true;
 
-						request.headers['host'] = result.target;
-
-						let ph = mod_url.parse(request.url);
-						let options = {
-							headers : request.headers,
-							host    : result.target,
-							hostname: ph.hostname,
-							path    : ph.path,
-							port    : ph.port,
-							method  : request.method
-						};
-						let targetRequest = mod_http.request(options, targetResponse=>{
-
-							let modify = (
-									result.includePlugins &&
-									targetResponse.headers['content-type'] &&
-									targetResponse.headers['content-type'].substr(0,9) === 'text/html'
-								),
-								b = Buffer.from(clientHTML+`<script>${process.env.pluginsJS}</script>`, 'utf8'),
-								body = [];
-
-							targetResponse.on('data', chunk=>{
-								body.push(chunk);
-							});
-							targetResponse.on('end' , ()=>{
-								body = Buffer.concat(body);
-								if (modify) {
-									if (targetResponse.headers['content-encoding'] === 'gzip')
-										body = mod_zlib.gzipSync(Buffer.concat([mod_zlib.unzipSync(body), b]));
-									else
-										body = Buffer.concat([body, b]);
-								}
-
-								response.statusCode = targetResponse.statusCode;
-								writeHeaders(response, targetResponse, modify?body.length:null);
-								response.write(body, 'binary');
-								response.end();
-							});
-						});
-
-						request.on('data', chunk=>targetRequest.write(chunk, 'binary'));
-						request.on('end', ()=>targetRequest.end());
-					}
-				} catch(e) {
-					errorHandle(e, 'MODULE ERROR', 'none'); //Nothing
-
-					response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
-					let stack = e.stack.replace(/at/g,'<br>@ at');
-					response.write(`
-						<head>
-							<meta charset="UTF-8">
-							<script>${process.env.pluginsJS}</script>
-						</head>
-						<body>SERVER ERROR<br><br>${stack}</body>
-					`);
-				}
 			} else {
-				response.writeHeader(404, {"Content-Type": "text/html; charset=utf-8"});
-				response.write('404 Not Found');
-				response.write(`<script>${process.env.pluginsJS}</script>`);
+				let hrs = null;
+
+				for (let h of handlersRequest) {
+					hrs = h(request, response);
+					if (hrs) {
+						if (hrs === -1) wait = true;
+						break;
+					}
+				}
+
+				if (!hrs && mm.onRequest) {
+					try {
+						let result = mm.onRequest(request, response);
+						if (result === 404) {
+							response.writeHeader(404, {"Content-Type": "text/html; charset=utf-8"});
+							response.write('404 Not Found');
+							response.write(`<script>${process.env.pluginsJS}</script>`);
+						}
+						else if (result === 1) {
+							response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+						}
+						else if (typeof result === 'object') {
+							wait = true;
+
+							request.headers['host'] = result.target;
+
+							let ph = mod_url.parse(request.url);
+							let options = {
+								headers : request.headers,
+								host    : result.target,
+								hostname: ph.hostname,
+								path    : ph.path,
+								port    : ph.port,
+								method  : request.method
+							};
+							let targetRequest = mod_http.request(options, targetResponse=>{
+
+								let modify = (
+										result.includePlugins &&
+										targetResponse.headers['content-type'] &&
+										targetResponse.headers['content-type'].substr(0,9) === 'text/html'
+									),
+									b = Buffer.from(clientHTML+`<script>${process.env.pluginsJS}</script>`, 'utf8'),
+									body = [];
+
+								targetResponse.on('data', chunk=>{
+									body.push(chunk);
+								});
+								targetResponse.on('end' , ()=>{
+									body = Buffer.concat(body);
+									if (modify) {
+										if (targetResponse.headers['content-encoding'] === 'gzip')
+											body = mod_zlib.gzipSync(Buffer.concat([mod_zlib.unzipSync(body), b]));
+										else
+											body = Buffer.concat([body, b]);
+									}
+
+									response.statusCode = targetResponse.statusCode;
+									writeHeaders(response, targetResponse, modify?body.length:null);
+									response.write(body, 'binary');
+									response.end();
+								});
+							});
+
+							request.on('data', chunk=>targetRequest.write(chunk, 'binary'));
+							request.on('end', ()=>targetRequest.end());
+						}
+					} catch(e) {
+						errorHandle(e, 'MODULE ERROR', 'none'); //Nothing
+
+						response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
+						let stack = e.stack.replace(/at/g,'<br>@ at');
+						response.write(`
+							<head>
+								<meta charset="UTF-8">
+								<script>${process.env.pluginsJS}</script>
+							</head>
+							<body>SERVER ERROR<br><br>${stack}</body>
+						`);
+					}
+				} else if (!hrs) {
+					response.writeHeader(404, {"Content-Type": "text/html; charset=utf-8"});
+					response.write('404 Not Found');
+					response.write(`<script>${process.env.pluginsJS}</script>`);
+				}
 			}
+
 			if (!wait) response.end();
 		}).listen(settings.port);
 
