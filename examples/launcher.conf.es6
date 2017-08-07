@@ -1,9 +1,12 @@
-require('../index.es6')({
+const medulla = require('../index.es6');
+
+medulla.launch({
 	port      : 3000,       //port
 	serverApp : "./app.es6",//path to your app main module
+	watch     : false,
 	logging   : { //logging params
 		dir: "logs",
-		level:"warning", //log only errors and warnings
+		level: medulla.flags.LOG_WARNING, //log only errors and warnings
 		separatedTypes:true
 	},
 	platforms :{ //platforms settings

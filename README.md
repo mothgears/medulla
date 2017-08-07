@@ -1,16 +1,34 @@
 # Medulla
-`medulla` is a multithreaded, no-dependency node.js server.
+multithreaded, no-dependency node.js server.
 
 ## Features
-- The server use several workers for [**multithreaded**](#common-variables) request handling.
-- **Caches files** from `watchedFiles` list (use for scripts, styles, texts etc.)
-- **Do no need "demonizers" and manually restarting**, set flag `watch:true` in configs 
+- **Quickly start** of app developing.
+- [**Multithreaded**](#common-variables) request handling.
+- **Caching files** from `watchedFiles` list (use for scripts, styles, texts etc.)
+- **Automatically restart server** on app source changing. Set flag `watch:true` in configs, 
 and server will do restart workers when detect changes in app modules, 
 and update cache when changed scripts (files with [prop](#main-module) `type:cached`).
-- Can work as a **proxy server** and forwarding requests to the specified domain.
-- Supports the **logging to files** for commands `console.log()`, `consol.warn()`, `console.error()`.
-- Has **router**
-- Has [plugin](https://www.npmjs.com/package/medulla-hotcode) for **hot reload css-slyles, js-scripts, and auto refreshing page** even as proxy (external dev-server mode).
+- **Built-in proxy** for forwarding requests.
+- **Logging to files** for commands `console.log() / .warn() / .error()` if set.
+- **Hot reload slyles and scripts, and auto refreshing page** using special [plugin](https://www.npmjs.com/package/medulla-hotcode).
+
+```es6
+//launcher.conf.js
+
+const medulla = require('medulla');
+medulla.launch({});
+```
+
+```es6
+//app.js
+
+module.exports.onRequest = (request, response)=>{
+    if (request.url !== '/') return 404;
+    response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
+    response.write('Hello World!');
+    return 1; 
+};
+```
 
 **(!)** *module in development, this is unstable version with incomplete functional.*  
 If you found bugs or you have suggestions for improvement, please feel free to submit them to e-mail:
@@ -29,19 +47,21 @@ Plugin for hot reload pages, scripts and styles directly in browser.
 
 ## Usage
 #### Server launcher and config
-Create server launcher (e.g. server.js) and require medulla with some settings (for example):
+Create launcher (e.g. launcher.conf.js) and require medulla with some settings (for example):
 ```es6
-//server.js
+//launcher.conf.js
 
-require('medulla')({
-    serverApp : "./myApp.js"
+const medulla = require('medulla');
+
+medulla.launch({
+    serverApp : "./myServerApp.js"
     platforms :{
         "win32" : {"forcewatch":false},
         "linux" : {"forcewatch":true}
     }
 });
 ```
-**(!)** *if you change this file, you need restart medulla.*  
+**(!)** *if you change this file, you need restart medulla manually.*  
 
 List of all available settings with default values:
 - `serverApp: "./app.js"`  
@@ -77,13 +97,13 @@ If set "true", the devPlugins will be included.
 - `proxyCookieDomain: "localhost"`  
 Proxy cookie domain name (for proxy mode).
 
-- `logging: {level:'trace', dir:process.cwd(), separatedTypes:false}`  
+- `logging: {level:medulla.flags.LOG_TRACE, dir:process.cwd(), separatedTypes:true}`  
 Async logging to file for "console.log()", "console.warn()" and "console.error()" methods.  
-  - `level: 'trace'`  
-  is min level for logging, can be "trace", "warning" or "error".
+  - `level: flags.LOG_TRACE`  
+  min level for logging, can be: LOG_TRACE, LOG_WARNING or LOG_ERROR.
   - `dir: process.cwd()`  
   directory for .log files.
-  - `separatedTypes: false`  
+  - `separatedTypes: true`  
   split log into several files by level.
   
 - `watchIgnore: {...}`  
@@ -97,9 +117,9 @@ Password for dashboard, if set, use: `http://yoursite/dashboard?password=yourpas
 if set true, plugin client code by default will be included to all routes
 
 #### App main module (entry point)
-Create the main module of your app (e.g. myApp.js) and set access rules for files on server use `publicAccess` list:
+Create the server-side main module of your app (e.g. myServerApp.js) and set access rules for files on server use `publicAccess` list:
 ```es6
-//myApp.js
+//myServerApp.js
 
 module.exports.publicAccess = {
     //access rules in format 'src:url'
@@ -119,7 +139,7 @@ File extension
 
 Next, add `watchedFiles` list, these files will be watched by server (if medulla config `watch: true`) and cached (if file/template param `type:"cached"`):
 ```es6
-//myApp.js
+//myServerApp.js
 
 module.exports.watchedFiles = {
     //indexed files in format 'src:{params}'
@@ -156,7 +176,7 @@ const myModule2 = medulla.require('./myModule2.js', {url:'client-module2.js', ty
 
 Add extra mime types in format {"ext":"mime"}:
 ```es6
-//myApp.js
+//myServerApp.js
 
 module.exports.mimeTypes : {
     "es6" : "application/javascript"
@@ -165,11 +185,11 @@ module.exports.mimeTypes : {
 
 Describe routes
 ```es6
-//myApp.js
+//myServerApp.js
 
 module.exports.routes = {
     '':()=>{ //index page
-        return '<html><body>Hellow World!</body></html>';
+        return '<html><body>Hello World!</body></html>';
     },
     
     'about/{beast}':(beast)=>{
@@ -188,7 +208,7 @@ if you need 'get' data in route like `mysite.net/user/marko?info=age` use:
 
 **also** you may describe the worker function for manually request handling:
 ```es6
-//myApp.js
+//myServerApp.js
 
 module.exports.onRequest = (request, response)=>{
     if (request.url !== '/') return 404;
@@ -207,12 +227,12 @@ module.exports.onRequest = (request, response)=>{
 #### Start server
 For start the server run the laucher:
 ```
-node server.js
+node launcher.conf.js
 ```
 
 or for start the server with dev plugins, run it with parameter:
 ```
-node server.js -dev
+node launcher.conf.js -dev
 ```
 and open the site in browser (e.g. `localhost:3000`)
 
@@ -242,8 +262,10 @@ You may see server status, or stop server use link:
 (or `http://yoursite/medulla_dashboard?password=yourpass` if `settings.dashboardPassword` is set)
 
 #### Console commands
-  - `version` - show module current version  
-  - `stop` - shutdown server
+  - `version`  
+  Show module current version.
+  - `stop`  
+  Shutdown server.
 
 ## License
 MIT

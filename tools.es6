@@ -15,3 +15,12 @@ module.exports = {
 		return year + "." + month + "." + day + " " + hour + ":" + min + ":" + sec;
 	}
 };
+
+/*exports.install = target=>{
+	let keys = Object.keys(exports);
+	for (let key of keys) {
+		target[key] = exports[key];
+	}
+
+	return exports;
+};*/

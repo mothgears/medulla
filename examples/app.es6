@@ -1,4 +1,4 @@
-const ms = medulla.require('./scripts/multiscript.es6', {url:'ms.js', type:'cached'});
+const ms = medulla.require('./multiscript.es6', {url:'ms.js', type:'cached'});
 
 module.exports = {
 
@@ -55,16 +55,16 @@ module.exports = {
 
 		/*
 		//will not work correct on multithread systems, because 'global' is unique for each worker
-		global.workerVariable = global.workerVariable || 0;
-		global.workerVariable++;
-		console.info('incorrect counter of requests: ' + workerVariable);
+		global.totalViews = global.totalViews || 0;
+		global.totalViews++;
+		console.info('incorrect counter of requests: ' + totalViews);
 		*/
 
 		//will work correct on multithread systems, because 'medulla.common storage' is shared between workers
 		medulla.common(storage=>{
-			storage.sharedVariable = storage.sharedVariable || 0;
-			storage.sharedVariable++;
-			console.info('correct counter of requests: ' + storage.sharedVariable)
+			storage.totalViews = storage.totalViews || 0;
+			storage.totalViews++;
+			console.info('correct counter of requests: ' + storage.totalViews)
 		});
 
 		return 1;

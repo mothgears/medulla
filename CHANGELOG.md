@@ -3,10 +3,13 @@
 ## Dev
 ##### Changes
 - **(!)** `isPage` renamed to `includePlugins`
+- **(!)** new launch and config api
+- `separatedTypes` default value changed to `true`
+- added log setting flags
 
 ##### Improvements
-- added router
 - added global `includePlugins` to settings
+- optimized indexing of dynamic-required modules
 
 ## V 0.7.2
 ##### Changes

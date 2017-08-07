@@ -1,10 +1,10 @@
 (()=>{
-	const h = it=>`Hello D ${it}!`;
+	const h = it=>`Hello MULTI2 ${it}!`;
 
 	//SERVER SIDE CODE
 	if (typeof global === 'object' && global) {
 		console.log(h('server'));
-		medulla.require('./subdir/server-script.es6')();
+		setTimeout(require('./subdir/server-script.es6'), 10000);
 
 	//CLIENT SIDE CODE
 	} else if (typeof window === 'object' && window) {

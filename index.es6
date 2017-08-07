@@ -1,5 +1,7 @@
+const flags = module.exports.flags = require('./flags.es6');
+
 //MEDULLA NODE SERVER
-module.exports = customSettings=>{
+module.exports.launch = customSettings=>{
 	//LIBS
 	const
 		cluster  = require('cluster'),
@@ -32,14 +34,15 @@ module.exports = customSettings=>{
 		proxyCookieDomain : 'localhost',
 		devPlugins        : {},
 		logging           : {
-			level: 'trace',
-			separatedTypes: false,
+			level: flags.LOG_TRACE,
+			separatedTypes: true,
 			dir: process.cwd()
 		},
 		dashboardPassword : null,
 		includePlugins    : true
 	};
 
+	//
 	let protectedSettings = [
 		'dashboardPassword',
 		'serverDir',
@@ -192,8 +195,9 @@ module.exports = customSettings=>{
 		process.openStdin().addListener("data", cmd=>{
 			cmd = cmd.toString().trim();
 			const acts = {
-				'version':()=>console.info(require('./package.json').version),
-				'stop'   :stopServer
+				'version'      : ()=>console.info(require('./package.json').version),
+				'stop'         : stopServer,
+				'cache-update' : updateCacheTotal
 			};
 			(acts[cmd] || (()=>{console.log('command not defined')}))();
 		});
@@ -361,6 +365,10 @@ module.exports = customSettings=>{
 			return false;
 		};
 
+		const updateCacheTotal = ()=>{
+			sendMessage({type : 'updateCache'});
+		};
+
 		function _handle (msg) {
 			//UPDATE WATCHERS AFTER START WORKERS
 			if (msg.type === 'update_watchers') {
@@ -467,18 +475,12 @@ module.exports = customSettings=>{
 							let onFileChange = eventType=>{
 								if (eventType === 'change') {
 									//UPDATE ALL WORKERS
-									if (fileparam.params.type === 'cached') {
-										let keys = Object.keys(cluster.workers);
-
-										for (let key of keys) try {
-											cluster.workers[key].send({
-												type   : 'updateCache',
-												url    : fileparam.params.url || filepath,
-												path   : filepath,
-												includePlugins : fileparam.params.includePlugins
-											});
-										} catch(e){}
-									}
+									if (fileparam.params.type === 'cached') sendMessage({
+										type   : 'updateCache',
+										url    : fileparam.params.url || filepath,
+										path   : filepath,
+										includePlugins : fileparam.params.includePlugins
+									});
 
 									for (let h of handlersModify) h(filepath, fileparam);
 
@@ -674,31 +676,7 @@ module.exports = customSettings=>{
 
 		//COMMON STORAGE
 		let _commonStorageLocal = {},
-			//_commonChanges      = {},
 			_proceduresQueue    = [];
-
-		/*const commonStorageI = new Proxy(_commonStorageLocal,{
-			set (target, propname, value) {
-				let type = typeof value,
-				    stringValue = '';
-
-				if (value === null) type = 'null';
-				else if (type === 'undefined') {}
-				else if (type === 'object') stringValue = JSON.stringify(value);
-				else if (type === 'number') stringValue = value.toString();
-				else if (type === 'string') stringValue = value;
-				else {
-					console.warn('Incorrect common prop type.');
-					return;
-				}
-
-				_commonChanges[propname] = {type, value:stringValue};
-				target[propname] = value;
-			}*//*,
-			get (target, propname) {
-				return target[propname];
-			}
-		});*/
 
 		//COMMON
 		medulla.common = procedure=>{
@@ -745,9 +723,22 @@ module.exports = customSettings=>{
 						});
 					};
 					cacheFromFile();
-				} else {
+				} else if (msg.url) {
 					delete cache[msg.url];
 					for (let h of handlersCacheModify) h();
+				} else {
+					let urls = Object.keys(cache);
+					let counter = 0;
+					for (let url of urls) {
+						counter++;
+						fs.readFile(cache[url].srcPath, 'utf8', (err, content)=>{
+							if (err) return;
+							for (let cm of cacheModificators) content = cm(content, msg.path, msg.url);
+							if (typeof content === 'string') cache[url].content = content;
+							counter--;
+							if (counter <= 0) for (let h of handlersCacheModify) h();
+						});
+					}
 				}
 			}
 			//else if (msg.type === 'updateClient') process.env.pluginsJS = msg.content;
@@ -820,7 +811,7 @@ module.exports = customSettings=>{
 			if (params) {
 				if      (params.type === 'file') files[params.url || filepath] = {
 					srcPath: filepath,
-					includePlugins : params.includePlugins
+					injectJSToClient : params.includePlugins
 				};
 				else if (params.type === 'cached') {
 					try {
@@ -938,10 +929,10 @@ module.exports = customSettings=>{
 			let clientSide = modulesParams[filepath];
 			addToWatchedFiles(filepath, clientSide, code);
 
-			//INSTALL DYNAMIC MODULES (INCLUDED IN FUNCTION)
+			//INSTALL DYNAMIC MODULES (INCLUDED IN FUNCTION) (ONLY IN MASTER)
 			let submods = getRequires(code);
-			for (let submod of submods) {
-				if (!require.cache[submod]) installModule(submod);
+			if (process.env.mainWorker === '1') for (let submod of submods) {
+				if (!require.cache[submod] && !watchedFiles[submod]) installModule(submod);
 			}
 		};
 
@@ -987,18 +978,16 @@ module.exports = customSettings=>{
 		};
 
 		const writeHeaders = (res, proxyRes, modifyLength = null)=>{
-			let rewriteCookieDomainConfig = settings.proxyCookieDomain,
+			let rcdc = settings.proxyCookieDomain,
 				setHeader = (key, header)=>{
 					if (header === undefined) return;
-					if (rewriteCookieDomainConfig && key.toLowerCase() === 'set-cookie') {
-						header = rewriteCookieDomain(header, rewriteCookieDomainConfig);
+					if (rcdc && key.toLowerCase() === 'set-cookie') {
+						header = rewriteCookieDomain(header, rcdc);
 					}
 					res.setHeader(String(key).trim(), header);
 				};
 
-			if (typeof rewriteCookieDomainConfig === 'string') {
-				rewriteCookieDomainConfig = { '*': rewriteCookieDomainConfig };
-			}
+			if (typeof rcdc === 'string') rcdc = { '*': rcdc };
 
 			Object.keys(proxyRes.headers).forEach(key=>{
 				let header = proxyRes.headers[key];
