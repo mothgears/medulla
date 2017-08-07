@@ -6,6 +6,7 @@
 - **(!)** new launch and config api
 - `separatedTypes` default value changed to `true`
 - added log setting flags
+- added console command `cache-update` for manually cached files updating
 
 ##### Improvements
 - added global `includePlugins` to settings
