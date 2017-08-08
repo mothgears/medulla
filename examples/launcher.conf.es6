@@ -2,8 +2,8 @@ const medulla = require('../index.es6');
 
 medulla.launch({
 	port      : 3000,       //port
-	serverApp : "./app.es6",//path to your app main module
-	watch     : false,
+	serverApp : "./app.server.es6", //path to your app main module
+	//watchForChanges : false,
 	logging   : { //logging params
 		dir: "logs",
 		level: medulla.flags.LOG_WARNING, //log only errors and warnings

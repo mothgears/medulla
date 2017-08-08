@@ -2,20 +2,18 @@ const ms = medulla.require('./multiscript.es6', {url:'ms.js', type:'cached'});
 
 module.exports = {
 
-	//Files with public access from web
-	publicAccess: {
+	fileSystem: {
+		//Static files with public access from web
 		'public/~*?'   : '~*?',        //all files from directory and subdirs
 		'images/*.png' : 'pic/*.png',  //add .png files directly from directory
-		'readme.txt'   : 'readme.txt'  //concrete file
-	},
+		'readme.txt'   : 'readme.txt',  //concrete file
 
-	watchedFiles: {
 		//Templates for watch
 		"scripts/~*.js" : {url:"~*.js", reload:'force'}, //type:"cached",
 		"styles/*.css"  : {reload:'hot'}, //'reload' prop for using with medulla-hotcode plugin
 		"*.html"        : {url:"*", isPage:true},
 
-		//Concrete files
+		//Concrete files for watch
 		"scripts/client-script.es6" : {url:"client-script.es6"}
 	},
 

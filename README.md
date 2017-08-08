@@ -73,8 +73,9 @@ Path to app dir.
 - `port: 3000`  
 Server port.
 
-- `watch: true`  
-If set "true", the server watch for files from watchedFiles and automatically update the cache each time it changes.
+- `watchForChanges: flags.WATCH_SOURCE`  
+if set "medulla.flags.WATCH_SOURCE", server will watch for modules and cached files and automatically restart workers or update the cache each time it changes.
+If WATCH_ALL - watch for all files, if WATCH_NO - not watching. 
 
 - `forcewatch: false`  
 Set true if "fs.watch" don't work correctly (with some OS/IDE) and server not reacting on file changes.
@@ -97,10 +98,10 @@ If set "true", the devPlugins will be included.
 - `proxyCookieDomain: "localhost"`  
 Proxy cookie domain name (for proxy mode).
 
-- `logging: {level:medulla.flags.LOG_TRACE, dir:process.cwd(), separatedTypes:true}`  
+- `logging: {level:flags.LOG_TRACE, dir:process.cwd(), separatedTypes:true}`  
 Async logging to file for "console.log()", "console.warn()" and "console.error()" methods.  
   - `level: flags.LOG_TRACE`  
-  min level for logging, can be: LOG_TRACE, LOG_WARNING or LOG_ERROR.
+  min level for logging, can be: medulla.flags.LOG_TRACE, LOG_WARNING or LOG_ERROR.
   - `dir: process.cwd()`  
   directory for .log files.
   - `separatedTypes: true`  
@@ -113,22 +114,29 @@ Represents a list of functions which return true if need ignore this file or dir
 - `dashboardPassword: null`  
 Password for dashboard, if set, use: `http://yoursite/dashboard?password=yourpass`
 
-- `includeSettings: true`  
-if set true, plugin client code by default will be included to all routes
-
 #### App main module (entry point)
-Create the server-side main module of your app (e.g. myServerApp.js) and set access rules for files on server use `publicAccess` list:
+Create the server-side main module of your app (e.g. myServerApp.js) and set `fileSystem`, dependent of settings some files will be watched by server:
 ```es6
 //myServerApp.js
 
-module.exports.publicAccess = {
-    //access rules in format 'src:url'
+module.exports.fileSystem = {    
+    //static files in format 'src:url'
+    "readme.txt"      : "readme.txt", //similar to "readme.txt":{type:"file", url:"readme.txt"}
+    "public_html/~*?" : "~*?",        //all files from "public_html" folder and subfolders
+    "images/*.png"    : "pic/*.png",  //all png files directly from "images" folder
     
-    "readme.txt"      : "readme.txt",
-    "public_html/~*?" : "~*?", //access to all files from "public_html" folder and subfolders
-    "images/*.png"    : "pic/*.png", //access to all png files directly from "images" folder
+    //cached files in format 'src:{params}'
+    "somescript.js"         : {}                    //similar to "somescript.js":{type:"cached"}
+    "bin/*.js"              : {url:"scripts/*.js"}, //all js files directly from "bin" folder
+    "styles/~*.css"         : {type:"cached"}       //all css files from "bin" folder and subfolders
+    "styles2/main-new.css"  : {type:"cached"},
+    "bin/client-script.es6" : {type:"cached", url:"client-script.es6"}
 };
 ```
+
+**(!)** *don't describe modules in "fileSystem" list, all required modules added automatically.*  
+**(!)** *for watched files will be create watchers, therefore on some OS, directories which contain this files/folders may be blocked for rename or delete.*  
+
 - `~`  
 File dir/path
 - `*`  
@@ -136,32 +144,13 @@ File name
 - `?`  
 File extension
 
-
-Next, add `watchedFiles` list, these files will be watched by server (if medulla config `watch: true`) and cached (if file/template param `type:"cached"`):
-```es6
-//myServerApp.js
-
-module.exports.watchedFiles = {
-    //indexed files in format 'src:{params}'
-    
-    //set templates
-    "bin/*.js" : {type:"cached", url:"scripts/*.js"}, //all js files directly from "bin" folder
-    "styles/~*.css" : {type:"cached"} //all css files from "bin" folder and subfolders
-    
-    //or concrete files
-    "styles2/main-new.css"  : {type:"cached"},
-    "bin/client-script.es6" : {type:"cached", url:"client-script.es6"}
-};
-```
-**(!)** *don't add modules to watchedFiles, required modules added automatically.*  
-**(!)** *this list is creating watchers, therefore on some OS, directories which contain this files/folders may be blocked for rename or delete till template target files/folders will not be removed from `watchedFiles` list.*  
-
 - `type:"cached"`  
-*(Default value)*  
+*(Default value for files with props in curly braces)*  
 Add file content to variable (for each worker).
 - `type:"file"`  
+*(Default value for files with props as string)*  
 Will read file from disc in every request.  
-- `includePlugins:false`  
+- `includeMedullaCode:false`  
 If set is true, medulla js code (plugins) will be included to this page (use for all html-pages).
   
 Default url is path to file, but you may specify it directly use `url` param.  
@@ -220,7 +209,7 @@ module.exports.onRequest = (request, response)=>{
     //1   - for including medulla-plugins code in responce body (use with html pages)
     //404 - for "404 Not Found"
     //0   - pure responce, use in other cases (json or other api data)
-    //{target:"mysite.net", includePlugins:(request.url === '/')} - for proxying this request
+    //{target:"mysite.net", includeMedullaCode:(request.url === '/')} - for proxying this request
 };
 ```
 

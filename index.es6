@@ -21,7 +21,7 @@ module.exports.launch = customSettings=>{
 		platforms         : {},
 		forcewatch        : false,
 		plugins           : {'./mod-ws.es6':{}/*, './mod-dashboard.es6':{}*/},
-		watch             : true,
+		watchForChanges   : flags.WATCH_SOURCE,
 		watchIgnore       : [
 			f=>f.endsWith('___jb_tmp___'),
 			f=>f.endsWith('___jb_old___'),
@@ -38,8 +38,7 @@ module.exports.launch = customSettings=>{
 			separatedTypes: true,
 			dir: process.cwd()
 		},
-		dashboardPassword : null,
-		includePlugins    : true
+		dashboardPassword : null
 	};
 
 	//
@@ -479,7 +478,7 @@ module.exports.launch = customSettings=>{
 										type   : 'updateCache',
 										url    : fileparam.params.url || filepath,
 										path   : filepath,
-										includePlugins : fileparam.params.includePlugins
+										includeMedullaCode : fileparam.params.includeMedullaCode
 									});
 
 									for (let h of handlersModify) h(filepath, fileparam);
@@ -717,7 +716,7 @@ module.exports.launch = customSettings=>{
 							if (typeof content === 'string') cache[msg.url] = {
 								content: content,
 								srcPath: msg.path,
-								includePlugins : msg.includePlugins
+								includeMedullaCode : msg.includeMedullaCode
 							};
 							for (let h of handlersCacheModify) h();
 						});
@@ -756,7 +755,10 @@ module.exports.launch = customSettings=>{
 
 		//REQUIRE MAIN MODULE AND CREATE WATCHED FILES INDEX
 		//--------------------------------------------------------------------------------------------------------------
-		let mm = {};
+		let
+			mm              = {},
+			mm_publicAccess = {},
+			mm_watchedFiles = {};
 
 		try {
 			if (typeof settings.serverApp === 'string') {
@@ -769,6 +771,19 @@ module.exports.launch = customSettings=>{
 			process.exit(1);
 		}
 
+		if (mm.fileSystem) {
+			let keys = Object.keys(mm.fileSystem);
+			for (let key of keys) {
+				let params = mm.fileSystem[key];
+				if (typeof params === 'string') mm_publicAccess[key] = params;
+				else if (
+					params.type === 'file'
+					&& settings.watchForChanges !== flags.WATCH_ALL
+				) mm_publicAccess[key] = params.url;
+				else mm_watchedFiles[key] = params;
+			}
+		}
+
 		if (mm.mimeTypes) {
 			let ks = Object.keys(mm.mimeTypes);
 			for (let k of ks) mimeTypes[k] = mm.mimeTypes[k];
@@ -779,10 +794,10 @@ module.exports.launch = customSettings=>{
 			let dir      = mod_path.dirname(url);
 			let filename = mod_path.basename(url, ext);
 
-			let tpaths = Object.keys(mm.publicAccess || {});
+			let tpaths = Object.keys(mm_publicAccess || {});
 
 			for (let tpath of tpaths) {
-				let turl = mm.publicAccess[tpath];
+				let turl = mm_publicAccess[tpath];
 				let rurl = turl.replace('~', dir+'/').replace('*', filename).replace('?', ext);
 
 				if (mod_path.resolve(rurl) === mod_path.resolve(url)) {
@@ -811,7 +826,7 @@ module.exports.launch = customSettings=>{
 			if (params) {
 				if      (params.type === 'file') files[params.url || filepath] = {
 					srcPath: filepath,
-					injectJSToClient : params.includePlugins
+					injectJSToClient : params.includeMedullaCode
 				};
 				else if (params.type === 'cached') {
 					try {
@@ -820,7 +835,7 @@ module.exports.launch = customSettings=>{
 						if (typeof content === 'string') cache[params.url || filepath] = {
 							content: content,
 							srcPath: filepath,
-							includePlugins : params.includePlugins
+							includeMedullaCode : params.includeMedullaCode
 						};
 					} catch (err) {
 						console.warn(`"${filepath}" not found`);
@@ -831,10 +846,10 @@ module.exports.launch = customSettings=>{
 
 		//for (let ign of settings.watchIgnore) console.info(ign.toString());
 
-		if (mm.watchedFiles) {
-			let fileIndexFiles = Object.keys(mm.watchedFiles);
+		if (mm_watchedFiles) {
+			let fileIndexFiles = Object.keys(mm_watchedFiles);
 			for (let filepath of fileIndexFiles) {
-				let params = mm.watchedFiles[filepath];
+				let params = mm_watchedFiles[filepath];
 				params.type = params.type || 'cached';
 
 				//TEMPLATE PROCESSING
@@ -941,7 +956,7 @@ module.exports.launch = customSettings=>{
 		for (let filepath of staticModules) installModule(filepath);
 
 		//SEND WATCHED FILES INDEX TO MASTER (ONLY FIRST WORKER)
-		if (settings.watch && process.env.mainWorker === '1') process.send({
+		if (settings.watchForChanges !== flags.WATCH_NO && process.env.mainWorker === '1') process.send({
 			type:'update_watchers',
 			fileIndex: JSON.stringify(watchedFiles),
 			templates: JSON.stringify(templates)
@@ -1034,14 +1049,14 @@ module.exports.launch = customSettings=>{
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.write(cache[path].content);
-				if (cache[path].includePlugins) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+				if (cache[path].includeMedullaCode) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
 			} else if (files[path]) {
 				if (!mt) mt = nomt(ext);
 				try {
 					let content = fs.readFileSync(files[path].srcPath);
 					response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 					response.write(content);
-					if (files[path].includePlugins) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+					if (files[path].includeMedullaCode) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
 				} catch (e) {
 					response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
 					response.write('ERROR: Registred file not found on server.');
@@ -1090,7 +1105,7 @@ module.exports.launch = customSettings=>{
 							let targetRequest = mod_http.request(options, targetResponse=>{
 
 								let modify = (
-										result.includePlugins &&
+										result.includeMedullaCode &&
 										targetResponse.headers['content-type'] &&
 										targetResponse.headers['content-type'].substr(0,9) === 'text/html'
 									),

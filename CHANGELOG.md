@@ -2,14 +2,15 @@
 
 ## Dev
 ##### Changes
-- **(!)** `isPage` renamed to `includePlugins`
+- **(!)** `watchedFiles` and `publicAccess` replaced with `fileSystem` object
+- **(!)** `isPage` renamed to `includeMedullaCode`
 - **(!)** new launch and config api
-- `separatedTypes` default value changed to `true`
+- setting `watch` replaced with `watchForChanges`
+- `logging.separatedTypes` default value changed to `true`
 - added log setting flags
-- added console command `cache-update` for manually cached files updating
+- added console command `cache-update` for manually cache updating
 
 ##### Improvements
-- added global `includePlugins` to settings
 - optimized indexing of dynamic-required modules
 
 ## V 0.7.2

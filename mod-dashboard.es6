@@ -95,4 +95,6 @@ module.exports.medullaWorker = io=>{
 			includePlugins: false
 		};
 	});
+
+	io.onRequest = ()=>{}
 };
