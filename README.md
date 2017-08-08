@@ -4,13 +4,13 @@ multithreaded, no-dependency node.js server.
 ## Features
 - **Quickly start** of app developing.
 - [**Multithreaded**](#common-variables) request handling.
-- **Caching files** from `watchedFiles` list (use for scripts, styles, texts etc.)
-- **Automatically restart server** on app source changing. Set flag `watch:true` in configs, 
+- **Caching files** from `fileSystem` list (use for scripts, styles, texts etc.)
+- **Automatically restart server** on app source changing. Set `watchForChanges: flags.WATCH_SOURCE` in configs, 
 and server will do restart workers when detect changes in app modules, 
 and update cache when changed scripts (files with [prop](#main-module) `type:cached`).
 - **Built-in proxy** for forwarding requests.
 - **Logging to files** for commands `console.log() / .warn() / .error()` if set.
-- **Hot reload slyles and scripts, and auto refreshing page** using special [plugin](https://www.npmjs.com/package/medulla-hotcode).
+- **Hot reload slyles and scripts, and auto refreshing page** if used special [plugin](https://www.npmjs.com/package/medulla-hotcode).
 
 ```es6
 //launcher.conf.js
