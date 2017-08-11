@@ -1,3 +1,3 @@
 This is example text file
 
-For start run "node server.es6"
+For start run "node launcher.conf.es6"

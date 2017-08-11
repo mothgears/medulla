@@ -2,16 +2,18 @@
 
 ## Dev
 ##### Changes
-- **(!)** `watchedFiles` and `publicAccess` replaced with `fileSystem` object
-- **(!)** `isPage` renamed to `includeMedullaCode`
-- **(!)** new launch and config api
+- new launch and config api
+- `watchedFiles` and `publicAccess` replaced with `fileSystem` object
+- `isPage` renamed to `includeMedullaCode`
 - setting `watch` replaced with `watchForChanges`
 - `logging.separatedTypes` default value changed to `true`
 - added log setting flags
 - added console command `cache-update` for manually cache updating
+- dashboard url changed to `medulla-dashboard`
 
 ##### Improvements
 - optimized indexing of dynamic-required modules
+- client js has been adapted for es5 browsers
 
 ## V 0.7.2
 ##### Changes

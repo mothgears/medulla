@@ -2,7 +2,7 @@ const medulla = require('../index.es6');
 
 medulla.launch({
 	port      : 3000,       //port
-	serverApp : "./app.server.es6", //path to your app main module
+	serverApp : "./index.app.es6", //path to your app main module
 	//watchForChanges : false,
 	logging   : { //logging params
 		dir: "logs",
@@ -12,6 +12,6 @@ medulla.launch({
 	platforms :{ //platforms settings
 		"win32" : {forcewatch:false},
 		"linux" : {forcewatch:true}
-	}/*,
-	dashboardPassword:'saturn'*/
+	},
+	dashboardPassword:'saturn'
 });

@@ -67,25 +67,6 @@ module.exports.medullaWorker = io=>{
 		}
 	});
 
-	const JS = ()=>{
-		document.querySelector('#button_stop').addEventListener('click', ()=>{
-			fetch(`/medulla_dashboard`, {
-				credentials: 'same-origin',
-				headers: {
-					"X-Requested-With": "XMLHttpRequest",
-					"Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
-				},
-				method: 'POST',
-				body: `do=stop${PW?'&password='+PW:''}`
-			}).then(r=>{
-				console.log('Stopped');
-				location.reload();
-			}).catch(r=>{
-				console.log('RRR');
-			});
-		});
-	};
-
 	io.addRoute('medulla_dashboard.js', ({GET})=>{
 		let noAcc = noAccess(GET.password);
 		if (noAcc) return noAcc;
@@ -96,5 +77,9 @@ module.exports.medullaWorker = io=>{
 		};
 	});
 
-	io.onRequest = ()=>{}
+	io.onRequest = (request, response)=>{
+		if (request.url === '/medulla_dashboard.js') {
+			//...
+		}
+	}
 };

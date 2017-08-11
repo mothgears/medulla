@@ -20,7 +20,7 @@ module.exports.launch = customSettings=>{
 		hosts             : {},
 		platforms         : {},
 		forcewatch        : false,
-		plugins           : {'./mod-ws.es6':{}/*, './mod-dashboard.es6':{}*/},
+		plugins           : {'./mod-ws.es6':{}, './dashboard.es6':{}},
 		watchForChanges   : flags.WATCH_SOURCE,
 		watchIgnore       : [
 			f=>f.endsWith('___jb_tmp___'),
@@ -222,10 +222,10 @@ module.exports.launch = customSettings=>{
 			commonStorage    = "{}",
 			addedFiles       = {},
 			medullaStats     = {
-				medullaLauchedTS: Date.now() / 1000,
-				medullaLauched: dateFormat(),
-				workersLauched: '-',
-				requests: 0
+				medullaLauchedTS : Date.now() / 1000,
+				medullaLauched   : dateFormat(),
+				workersLauched   : '-',
+				requests         : 0
 			};
 
 		const toClient = func=>{
