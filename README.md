@@ -16,7 +16,9 @@ and update cache when changed scripts (files with [prop](#main-module) `type:cac
 //launcher.conf.js
 
 const medulla = require('medulla');
-medulla.launch({});
+medulla.launch({
+    serverApp : "./app.js"
+});
 ```
 
 ```es6
@@ -112,7 +114,7 @@ Rules for ignoring files when watching
 Represents a list of functions which return true if need ignore this file or directory.
 
 - `dashboardPassword: null`  
-Password for dashboard, if set, use: `http://yoursite/dashboard?password=yourpass`
+Password for dashboard
 
 #### App main module (entry point)
 Create the server-side main module of your app (e.g. myServerApp.js) and set `fileSystem`, dependent of settings some files will be watched by server:
@@ -246,9 +248,7 @@ module.exports.onRequest = (request, response)=>{
 };
 ```
 #### Dashboard
-You may see server status, or stop server use link: 
-`http://yoursite/medulla_dashboard` (e.g. `localhost:3000/medulla_dashboard`)  
-(or `http://yoursite/medulla_dashboard?password=yourpass` if `settings.dashboardPassword` is set)
+You may see server status, or stop server use link: `/medulla-dashboard` 
 
 #### Console commands
   - `version`  
