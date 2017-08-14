@@ -20,7 +20,7 @@ module.exports.launch = customSettings=>{
 		hosts             : {},
 		platforms         : {},
 		forcewatch        : false,
-		plugins           : {'./mod-ws.es6':{}, './dashboard.es6':{}},
+		plugins           : {'./mod-ws.es6':{}/*, './dashboard.es6':{}*/},
 		watchForChanges   : flags.WATCH_SOURCE,
 		watchIgnore       : [
 			f=>f.endsWith('___jb_tmp___'),
@@ -38,7 +38,8 @@ module.exports.launch = customSettings=>{
 			separatedTypes: true,
 			dir: process.cwd()
 		},
-		dashboardPassword : null
+		dashboardPassword : null,
+		includeMedullaCode: true
 	};
 
 	//
@@ -789,6 +790,8 @@ module.exports.launch = customSettings=>{
 			for (let k of ks) mimeTypes[k] = mm.mimeTypes[k];
 		}
 
+		if (mm.onRequest) handlersRequest.push(mm.onRequest);
+
 		const accessToFile = url=>{
 			let ext      = mod_path.extname(url);
 			let dir      = mod_path.dirname(url);
@@ -931,7 +934,6 @@ module.exports.launch = customSettings=>{
 				}*/
 			}
 		}
-		//if (mm.onRequest) handlersRequest.push(mm.onRequest);
 
 		const installModule = filepath=>{
 			let code = null;
@@ -1023,138 +1025,128 @@ module.exports.launch = customSettings=>{
 			requests = 0;
 		}, 60000);
 
+		const handleRequest = (handler, io, request, response)=>{
+			if (handler) {
+				try {
+					handler(io, request, response);
+				} catch (e) {
+					errorHandle(e, 'MODULE ERROR', 'none'); //Nothing
+
+					response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
+					let stack = e.stack.replace(/at/g, '<br>@ at');
+					response.write(`
+						<head>
+							<meta charset="UTF-8">
+							<script>${process.env.pluginsJS}</script>
+						</head>
+						<body>SERVER ERROR<br><br>${stack}</body>
+					`);
+				}
+			} else if (io.target) {
+				request.headers['host'] = io.target;
+
+				let ph = mod_url.parse(request.url);
+				let options = {
+					headers : request.headers,
+					host    :io.target,
+					hostname: ph.hostname,
+					path    : ph.path,
+					port    : ph.port,
+					method  : request.method
+				};
+				let targetRequest = mod_http.request(options, targetResponse=>{
+
+					let modify = (
+							io.includeMedullaCode &&
+							targetResponse.headers['content-type'] &&
+							targetResponse.headers['content-type'].substr(0,9) === 'text/html'
+						),
+						b = Buffer.from(clientHTML+`<script>${process.env.pluginsJS}</script>`, 'utf8'),
+						body = [];
+
+					targetResponse.on('data', chunk=>{
+						body.push(chunk);
+					});
+					targetResponse.on('end' , ()=>{
+						body = Buffer.concat(body);
+						if (modify) {
+							if (targetResponse.headers['content-encoding'] === 'gzip')
+								body = mod_zlib.gzipSync(Buffer.concat([mod_zlib.unzipSync(body), b]));
+							else
+								body = Buffer.concat([body, b]);
+						}
+
+						response.statusCode = targetResponse.statusCode;
+						writeHeaders(response, targetResponse, modify?body.length:null);
+						response.write(body, 'binary');
+						response.end();
+					});
+				});
+
+				request.on('data', chunk=>targetRequest.write(chunk, 'binary'));
+				request.on('end', ()=>targetRequest.end());
+			} else io.end();
+		};
+
 		//LAUNCH
 		mod_http.createServer((request, response)=>{
 			requests++;
 
-			let wait = false;
-			let parsedURL = mod_url.parse(request.url);
+			let parsedURL = mod_url.parse(request.url, true);
 
 			let path = parsedURL.pathname.slice(1);
 			let ext  = mod_path.extname(path).slice(1);
 			let mt   = (ext && mimeTypes[ext])?mimeTypes[ext]:null;
 			let cnt  = null;
 
-			/*if (path === 'medulla-plugins.js') {
-				response.writeHeader(200, {"Content-Type": (mt?mt:"application/javascript")+"; charset=utf-8"});
-				response.write(process.env.pluginsJS);
-			} else*/
-
-			//let routepath = path.split('/');
-			//let route = null;
-
+			//STATIC
 			if (cache[path]) {
 				ext = mod_path.extname(cache[path].srcPath).slice(1);
 				mt = (ext && mimeTypes[ext]) ? mimeTypes[ext] : mt;
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
-				response.write(cache[path].content);
+				response.end(cache[path].content);
 				if (cache[path].includeMedullaCode) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
 			} else if (files[path]) {
 				if (!mt) mt = nomt(ext);
 				try {
 					let content = fs.readFileSync(files[path].srcPath);
 					response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
-					response.write(content);
+					response.end(content);
 					if (files[path].includeMedullaCode) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
 				} catch (e) {
 					response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
-					response.write('ERROR: Registred file not found on server.');
+					response.end('ERROR: Registred file not found on server.');
 				}
 			} else if (cnt = accessToFile(path)) {
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
-				response.write(cnt);
+				response.end(cnt);
 
+			//REQUEST HANDLERS
 			} else {
-				let hrs = null;
+				const io = {};
 
-				for (let h of handlersRequest) {
-					hrs = h(request, response);
-					if (hrs) {
-						if (hrs === -1) wait = true;
-						break;
-					}
-				}
+				io.end = ()=>{
+					if (io.includeMedullaCode) io.body += clientHTML+`<script>${process.env.pluginsJS}</script>`;
+					response.writeHeader(io.code, io.headers);
+					response.write(io.body);
+					response.end();
+				};
+				io.url     = request.url;
+				io.body    = '404 Not Found';
+				io.headers = {"Content-Type": "text/html; charset=utf-8"};
+				io.code    = 404;
+				io.includeMedullaCode = settings.includeMedullaCode;
 
-				if (!hrs && mm.onRequest) {
-					try {
-						let result = mm.onRequest(request, response);
-						if (result === 404) {
-							response.writeHeader(404, {"Content-Type": "text/html; charset=utf-8"});
-							response.write('404 Not Found');
-							response.write(`<script>${process.env.pluginsJS}</script>`);
-						}
-						else if (result === 1) {
-							response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
-						}
-						else if (typeof result === 'object') {
-							wait = true;
-
-							request.headers['host'] = result.target;
-
-							let ph = mod_url.parse(request.url);
-							let options = {
-								headers : request.headers,
-								host    : result.target,
-								hostname: ph.hostname,
-								path    : ph.path,
-								port    : ph.port,
-								method  : request.method
-							};
-							let targetRequest = mod_http.request(options, targetResponse=>{
-
-								let modify = (
-										result.includeMedullaCode &&
-										targetResponse.headers['content-type'] &&
-										targetResponse.headers['content-type'].substr(0,9) === 'text/html'
-									),
-									b = Buffer.from(clientHTML+`<script>${process.env.pluginsJS}</script>`, 'utf8'),
-									body = [];
-
-								targetResponse.on('data', chunk=>{
-									body.push(chunk);
-								});
-								targetResponse.on('end' , ()=>{
-									body = Buffer.concat(body);
-									if (modify) {
-										if (targetResponse.headers['content-encoding'] === 'gzip')
-											body = mod_zlib.gzipSync(Buffer.concat([mod_zlib.unzipSync(body), b]));
-										else
-											body = Buffer.concat([body, b]);
-									}
-
-									response.statusCode = targetResponse.statusCode;
-									writeHeaders(response, targetResponse, modify?body.length:null);
-									response.write(body, 'binary');
-									response.end();
-								});
-							});
-
-							request.on('data', chunk=>targetRequest.write(chunk, 'binary'));
-							request.on('end', ()=>targetRequest.end());
-						}
-					} catch(e) {
-						errorHandle(e, 'MODULE ERROR', 'none'); //Nothing
-
-						response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
-						let stack = e.stack.replace(/at/g,'<br>@ at');
-						response.write(`
-							<head>
-								<meta charset="UTF-8">
-								<script>${process.env.pluginsJS}</script>
-							</head>
-							<body>SERVER ERROR<br><br>${stack}</body>
-						`);
-					}
-				} else if (!hrs) {
-					response.writeHeader(404, {"Content-Type": "text/html; charset=utf-8"});
-					response.write('404 Not Found');
-					response.write(`<script>${process.env.pluginsJS}</script>`);
-				}
+				let hi = -1;
+				io.next = ()=>{
+					hi++;
+					handleRequest(handlersRequest[hi], io, request, response);
+				};
+				io.next();
 			}
 
-			if (!wait) response.end();
 		}).listen(settings.port);
 
 		process.send({type:'worker_launched'});

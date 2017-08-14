@@ -28,15 +28,16 @@ module.exports.medullaWorker = worker=>{
 		}
 	});
 
-	worker.onRequest = (request, response)=>{
-		if (request.url === '/medulla_dashboard.js') {
-			response.writeHeader(200, {"Content-Type": "application/javascript; charset=utf-8"});
-			response.write(`(${CLIENT_JS.toString()})();`);
-			return 1;
+	worker.onRequest = (io, request, response)=>{
+		if (io.url === '/medulla_dashboard.js') {
+			io.code = 200;
+			io.headers["Content-Type"] = "application/javascript; charset=utf-8";
+			io.body += `(${CLIENT_JS.toString()})();`;
+			io.end();
 		}
 
-		if (request.url === '/medulla-dashboard') {
-			if (request.method === 'GET') {
+		if (io.url === '/medulla-dashboard') {
+			if (io.method === 'GET') {
 				if (request.url === '/medulla-dashboard') {
 					response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
 					res = response;
