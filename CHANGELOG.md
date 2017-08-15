@@ -7,6 +7,7 @@
 - `isPage` renamed to `includeMedullaCode`
 - setting `watch` replaced with `watchForChanges`
 - `logging.separatedTypes` default value changed to `true`
+- changed request/response api
 - added log setting flags
 - added console command `cache-update` for manually cache updating
 - dashboard url changed to `medulla-dashboard`

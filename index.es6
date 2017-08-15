@@ -12,35 +12,7 @@ module.exports.launch = customSettings=>{
 		{_00, _000, dateFormat} = require('./tools.es6');
 
 	//SETTINGS
-	let settings = {
-		port              : 3000,
-		wsPort            : 9000,
-		serverDir         : process.cwd(),
-		serverApp         : './app.js',
-		hosts             : {},
-		platforms         : {},
-		forcewatch        : false,
-		plugins           : {'./mod-ws.es6':{}/*, './dashboard.es6':{}*/},
-		watchForChanges   : flags.WATCH_SOURCE,
-		watchIgnore       : [
-			f=>f.endsWith('___jb_tmp___'),
-			f=>f.endsWith('___jb_old___'),
-			f=>{
-				let mind = f.lastIndexOf('/medulla/');
-				return (mind>=0 && mind + 8 === f.lastIndexOf('/'));
-			}
-		],
-		devMode           : process.argv.indexOf('-dev') >= 0,
-		proxyCookieDomain : 'localhost',
-		devPlugins        : {},
-		logging           : {
-			level: flags.LOG_TRACE,
-			separatedTypes: true,
-			dir: process.cwd()
-		},
-		dashboardPassword : null,
-		includeMedullaCode: true
-	};
+	let settings = require('./default.settings.es6');
 
 	//
 	let protectedSettings = [
@@ -591,9 +563,13 @@ module.exports.launch = customSettings=>{
 	} else {
 		const
 			getRequires = require('./detectRequires.es6'),
-			mod_http = require('http'),
-			mod_url = require('url'),
-			mod_zlib = require('zlib');
+			mod_http    = require('http'),
+			mod_url     = require('url'),
+			mod_io      = require('./io.es6');
+
+			//proxy       = require('./proxy.es6');
+			//mod_httpi   = require('./httpi.es6');
+			//IO = require('./io.class.es6');
 			//mod_qs = require('querystring');
 
 		let handlersRequest = [],
@@ -623,20 +599,26 @@ module.exports.launch = customSettings=>{
 			process.send({type:'stop'})
 		};
 
+		let waiters = {};
+		const askMaster = (msg, resmsg)=>{
+			waiters[msg.type] = resmsg;
+			process.send(msg);
+		};
+
 		for (let plugin of workerPlugins) {
 			let p = require(plugin);
 			if (p.medullaWorker) {
-				let io = {
+				let api = {
 					settings,
 					toClient,
 					getRequires,
-					stopServer/*,
-					addRoute*/
+					askMaster,
+					stopServer
 				};
-				p.medullaWorker(io);
-				if (io.cacheModificator) cacheModificators  .push(io.cacheModificator);
-				if (io.onCacheModify)    handlersCacheModify.push(io.onCacheModify);
-				if (io.onRequest)        handlersRequest    .push(io.onRequest);
+				p.medullaWorker(api);
+				if (api.cacheModificator) cacheModificators  .push(api.cacheModificator);
+				if (api.onCacheModify)    handlersCacheModify.push(api.onCacheModify);
+				if (api.onRequest)        handlersRequest    .push(api.onRequest);
 			}
 		}
 
@@ -751,6 +733,11 @@ module.exports.launch = customSettings=>{
 				_proceduresQueue.length = 0;
 
 				process.send({type:'free_control', storage:JSON.stringify(_commonStorageLocal)});
+			}
+
+			else if (waiters[msg.type]) {
+				waiters[msg.type](msg);
+				delete waiters[msg.type];
 			}
 		});
 
@@ -966,53 +953,6 @@ module.exports.launch = customSettings=>{
 
 		for (let h of handlersCacheModify) h();
 
-		//SERVER LAUNCH
-		//--------------------------------------------------------------------------------------------------------------
-		//UTILS
-		const rewriteCookieDomain = (header, config)=>{
-			if (Array.isArray(header)) {
-				return header.map(function (headerElement) {
-					return rewriteCookieDomain(headerElement, config);
-				});
-			}
-			let cookieDomainRegex = /(;\s*domain=)([^;]+)/i;
-
-			if (typeof header === 'string') return header.replace(cookieDomainRegex, function(match, prefix, previousDomain) {
-				let newDomain;
-				if (previousDomain in config) {
-					newDomain = config[previousDomain];
-				} else if ('*' in config) {
-					newDomain = config['*'];
-				} else {
-					return match;
-				}
-				if (newDomain) {
-					return prefix + newDomain;
-				} else {
-					return '';
-				}
-			});
-		};
-
-		const writeHeaders = (res, proxyRes, modifyLength = null)=>{
-			let rcdc = settings.proxyCookieDomain,
-				setHeader = (key, header)=>{
-					if (header === undefined) return;
-					if (rcdc && key.toLowerCase() === 'set-cookie') {
-						header = rewriteCookieDomain(header, rcdc);
-					}
-					res.setHeader(String(key).trim(), header);
-				};
-
-			if (typeof rcdc === 'string') rcdc = { '*': rcdc };
-
-			Object.keys(proxyRes.headers).forEach(key=>{
-				let header = proxyRes.headers[key];
-				if (modifyLength && key.toLowerCase() === 'content-length') {header = modifyLength;}
-				setHeader(key, header);
-			});
-		};
-
 		const nomt = ext=>{
 			console.info(`Mime type for extension "${ext}" not found, extend mime types.`);
 			return 'text/html';
@@ -1024,69 +964,6 @@ module.exports.launch = customSettings=>{
 			process.send({type:'stats_rpm', value: requests});
 			requests = 0;
 		}, 60000);
-
-		const handleRequest = (handler, io, request, response)=>{
-			if (handler) {
-				try {
-					handler(io, request, response);
-				} catch (e) {
-					errorHandle(e, 'MODULE ERROR', 'none'); //Nothing
-
-					response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
-					let stack = e.stack.replace(/at/g, '<br>@ at');
-					response.write(`
-						<head>
-							<meta charset="UTF-8">
-							<script>${process.env.pluginsJS}</script>
-						</head>
-						<body>SERVER ERROR<br><br>${stack}</body>
-					`);
-				}
-			} else if (io.target) {
-				request.headers['host'] = io.target;
-
-				let ph = mod_url.parse(request.url);
-				let options = {
-					headers : request.headers,
-					host    :io.target,
-					hostname: ph.hostname,
-					path    : ph.path,
-					port    : ph.port,
-					method  : request.method
-				};
-				let targetRequest = mod_http.request(options, targetResponse=>{
-
-					let modify = (
-							io.includeMedullaCode &&
-							targetResponse.headers['content-type'] &&
-							targetResponse.headers['content-type'].substr(0,9) === 'text/html'
-						),
-						b = Buffer.from(clientHTML+`<script>${process.env.pluginsJS}</script>`, 'utf8'),
-						body = [];
-
-					targetResponse.on('data', chunk=>{
-						body.push(chunk);
-					});
-					targetResponse.on('end' , ()=>{
-						body = Buffer.concat(body);
-						if (modify) {
-							if (targetResponse.headers['content-encoding'] === 'gzip')
-								body = mod_zlib.gzipSync(Buffer.concat([mod_zlib.unzipSync(body), b]));
-							else
-								body = Buffer.concat([body, b]);
-						}
-
-						response.statusCode = targetResponse.statusCode;
-						writeHeaders(response, targetResponse, modify?body.length:null);
-						response.write(body, 'binary');
-						response.end();
-					});
-				});
-
-				request.on('data', chunk=>targetRequest.write(chunk, 'binary'));
-				request.on('end', ()=>targetRequest.end());
-			} else io.end();
-		};
 
 		//LAUNCH
 		mod_http.createServer((request, response)=>{
@@ -1124,28 +1001,15 @@ module.exports.launch = customSettings=>{
 				response.end(cnt);
 
 			//REQUEST HANDLERS
-			} else {
-				const io = {};
-
-				io.end = ()=>{
-					if (io.includeMedullaCode) io.body += clientHTML+`<script>${process.env.pluginsJS}</script>`;
-					response.writeHeader(io.code, io.headers);
-					response.write(io.body);
-					response.end();
-				};
-				io.url     = request.url;
-				io.body    = '404 Not Found';
-				io.headers = {"Content-Type": "text/html; charset=utf-8"};
-				io.code    = 404;
-				io.includeMedullaCode = settings.includeMedullaCode;
-
-				let hi = -1;
-				io.next = ()=>{
-					hi++;
-					handleRequest(handlersRequest[hi], io, request, response);
-				};
-				io.next();
-			}
+			} else mod_io(
+				request,
+				response,
+				handlersRequest,
+				settings.includeMedullaCode,
+				errorHandle,
+				clientHTML,
+				settings.proxyCookieDomain
+			);
 
 		}).listen(settings.port);
 
