@@ -13,5 +13,5 @@ module.exports = model=>`
 		
 		`+(model.withpass?`<input type="text" placeholder="password" style="text-align: center">`:'')+`
 	</body>
-	<script src="medulla_dashboard.js"></script>
+	<script src="medulla-dashboard.js"></script>
 </html>`;

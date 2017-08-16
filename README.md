@@ -3,7 +3,7 @@ multithreaded, no-dependency node.js server.
 
 ## Features
 - [**Multithreaded**](#common-variables) request handling.
-- **Caching files** from `fileSystem` list (use for scripts, styles, texts etc.)
+- **Caching files** specified files (use for scripts, styles, texts etc.)
 - **Automatically restart server** on app source changing. Set `watchForChanges: flags.WATCH_SOURCE` in configs, 
 and server will do restart workers when detect changes in app modules, 
 and update cache when changed scripts (files with [prop](#main-module) `type:cached`).
@@ -24,17 +24,13 @@ medulla.launch({
 ```es6
 //app.js
 
-module.exports.onRequest = (request, response)=>{
-    if (request.url !== '/') return 404;
-    response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
-    response.write('Hello World!');
-    return 1; 
+module.exports.onRequest = (io, req, res)=>{
+    if (io.url !== '/') io.send(404);
+    else                io.send('Hello World!');
 };
 ```
 
 **(!)** *module in development, this is unstable version with incomplete functional.*  
-If you found bugs or you have suggestions for improvement, please feel free to submit them to e-mail:
-[mailbox@mothgears.com](mailto:mailbox@mothgears.com)
 
 ## Installation
 As [npm](https://www.npmjs.com/package/medulla) package  
@@ -96,9 +92,6 @@ This plugins used only in dev mode (-dev).
 
 - `devMode: false`  
 If set "true", the devPlugins will be included.
-
-- `proxyCookieDomain: "localhost"`  
-Proxy cookie domain name (for proxy mode).
 
 - `logging: {level:flags.LOG_TRACE, dir:process.cwd(), separatedTypes:true}`  
 Async logging to file for "console.log()", "console.warn()" and "console.error()" methods.  

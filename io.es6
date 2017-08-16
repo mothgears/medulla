@@ -1,61 +1,133 @@
-const proxy = require('./proxy.es6');
+const mod_proxy = require('./proxy.es6');
+const mod_url = require('url');
 
-const handleRequest = (handler, io, request, response, errorHandle)=>{
-	if (handler) {
-		try {
-			handler(io, request, response);
-		} catch (e) {
-			errorHandle(e, 'MODULE ERROR', 'none'); //Nothing
-
-			response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
-			let stack = e.stack.replace(/at/g, '<br>@ at');
-			response.write(`
-				<head>
-					<meta charset="UTF-8">
-					<script>${process.env.pluginsJS}</script>
-				</head>
-				<body>SERVER ERROR<br><br>${stack}</body>
-			`);
-		}
-	} else io.send();
-};
+const setDefault = (p, v) => (p === undefined) ? v : p;
 
 class IO {
-	constructor () {
-		//...
+	constructor (handlersRequest, request, response, config = {}) {
+		this.handlersRequest = handlersRequest;
+		this.counter         = -1;
+		this.request         = request;
+		this.response        = response;
+		this.modifyResponse  = config.modifyResponse;
+		this.modificator     = config.modificator;
+		this.onResponseError = config.onResponseError;
+		this.getResponseBody = setDefault(config.getResponseBody, true);
+		this.autoHandle      = setDefault(config.autoHandle     , true);
+
+		this.output              = '404 Not Found';
+		this.response.statusCode = 404;
+		this.response.headers    = {'content-type': "text/html; charset=utf-8"};
+		this._input              = null;
+
+		if (this.autoHandle) this.handle();
+	}
+
+	//Params
+	get url    () {
+		return this.request.url;
+	}
+	get method () {return this.request.method;}
+	get input  () {return this._input;}
+
+	get code   ()      {return this.response.statusCode;}
+	set code   (value) {this.response.statusCode = value;}
+
+	set (header, value) {
+		if      (typeof header === 'object') this.response.headers = header;
+		else if (typeof header === 'string') {
+			if (value) this.response.headers[header]   = value;
+			else this.response.headers['content-type'] = header;
+		}
+	}
+	get (headername) {return this.request.headers[headername];}
+
+	//Methods
+	next () {
+		this.counter++;
+
+		let handler = this.handlersRequest[this.counter];
+
+		if (handler) {
+			try {
+				handler(this, this.request, this.response);
+			} catch (e) {
+				if (this.onResponseError) this.onResponseError(e, this.request, this.response);
+			}
+		} else this.send();
+	};
+
+	send (...params) {
+		let
+			body = null,
+			head = null,
+			code = null;
+
+		for (let param of params) {
+			if (typeof param === 'string') {
+				if (!body) body = param;
+				else head = {"content-type": param}
+			} else if (typeof param === 'number') {
+				code = param;
+			} else if (typeof param === 'object') {
+				head = param;
+			}
+		}
+
+		if (body && code === null) code = 200;
+
+		if (body !== null) this.output              = body;
+		if (head !== null) this.response.headers    = head;
+		if (code !== null) this.response.statusCode = code;
+
+		let modify = (
+			this.modificator &&
+			this.modifyResponse &&
+			this.response.headers['content-type'] &&
+			this.response.headers['content-type'].substr(0,9) === 'text/html'
+		);
+
+		if (modify) this.output += this.modificator;
+		this.response.end(this.output);
+	};
+
+	forward (target) {
+		mod_proxy.forward(
+			target,
+			this.request,
+			this.response,
+			this.modifyResponse,
+			this.modificator,
+			this.method === 'POST' ? this.input : ''
+		);
+	};
+
+	handle () {
+		if (this.request.method === 'GET') {
+			this._input = mod_url.parse(this.request.url).query;
+			this.next();
+		} else {
+			let body = '';
+			this.request.on('data', chunk=>{
+				body += chunk;
+				if (body.length > 1e6) this.request.connection.destroy();
+			}).on('end', ()=>{
+				this._input = body;
+				this.next();
+			});
+		}
 	}
 }
 
-module.exports = (request, response, handlersRequest, includeMedullaCode, errorHandle, clientHTML, proxyCookieDomain)=>{
-	const io = new IO();
+class MedullaIO extends IO {
+	get includeMedullaCode()      {return this.modifyResponse;}
+	set includeMedullaCode(value) {this.modifyResponse = value;}
+}
 
-	io.send = ()=>{
-		let modify = (
-			io.includeMedullaCode &&
-			response.headers['content-type'] &&
-			response.headers['content-type'].substr(0,9) === 'text/html'
-		);
-
-		if (modify) io.body += clientHTML+`<script>${process.env.pluginsJS}</script>`;
-		response.writeHeader(io.code, io.headers);
-		response.write(io.body);
-		response.end();
-	};
-
-	let hi = -1;
-	io.next = ()=>{
-		hi++;
-		handleRequest(handlersRequest[hi], io, request, response, errorHandle);
-	};
-	io.forward = target=>{
-		proxy.forward(target, io.includeMedullaCode, request, response, clientHTML, proxyCookieDomain);
-	};
-
-	io.url     = request.url;
-	io.body    = '404 Not Found';
-	io.headers = {"Content-Type": "text/html; charset=utf-8"};
-	io.code    = 404;
-	io.includeMedullaCode = includeMedullaCode;
-
-	io.next();
+module.exports = (request, response, handlersRequest, includeMedullaCode, errorHandle, clientHTML, proxyCookieDomain, responseErrorHandler)=>{
+	const io = new MedullaIO(handlersRequest, request, response, {
+		onResponseError : responseErrorHandler,
+		modifyResponse  : includeMedullaCode,
+		modificator     : clientHTML+`<script>${process.env.pluginsJS}</script>`
+	});
 };

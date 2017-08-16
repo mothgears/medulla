@@ -21,11 +21,26 @@ module.exports = {
 		"es6" : "application/javascript"
 	},
 
-	onRequest (request, response) {
-		if (request.url !== '/') return 404;
+	onRequest (io) {
 
-		response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
-		response.write(`
+		//Counter test
+
+		/*
+		//will not work correct on multithread systems, because 'global' is unique for each worker
+		global.totalViews = global.totalViews || 0;
+		global.totalViews++;
+		console.info('incorrect counter of requests: ' + totalViews);
+		*/
+
+		//will work correct on multithread systems, because 'medulla.common storage' is shared between workers
+		medulla.common(storage=>{
+			storage.totalViews = storage.totalViews || 0;
+			storage.totalViews++;
+			console.info('correct counter of requests: ' + storage.totalViews)
+		});
+
+		if (io.url !== '/') io.send(404);
+		else io.send(`
 			<html>
 				<head>
 					<link href="styles/main.css" rel="stylesheet">
@@ -48,28 +63,6 @@ module.exports = {
 				</body>
 			</html>
 		`);
-
-		//Counter test
-
-		/*
-		//will not work correct on multithread systems, because 'global' is unique for each worker
-		global.totalViews = global.totalViews || 0;
-		global.totalViews++;
-		console.info('incorrect counter of requests: ' + totalViews);
-		*/
-
-		//will work correct on multithread systems, because 'medulla.common storage' is shared between workers
-		medulla.common(storage=>{
-			storage.totalViews = storage.totalViews || 0;
-			storage.totalViews++;
-			console.info('correct counter of requests: ' + storage.totalViews)
-		});
-
-		return 1;
-		//return 1   - for including medulla-plugins code in responce body (use with page html)
-		//return 404 - for "404 Not Found"
-		//return 0   - pure responce, use it other cases (json or other api data)
-		//return {target:"mysite.net", isPage:(request.url === '/')} - for proxying this request
 	}
 };
 //setTimeout(()=>{FEF.n.x = 5 + jui; console.log('X');}, 100);

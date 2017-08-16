@@ -1,99 +1,120 @@
-const
-	mod_url  = require('url'),
-	mod_http = require('http'),
-	mod_zlib = require('zlib');
-	mod_proxy = require('./proxy.es6');
+const mod_proxy = require('./proxy.es6');
+const mod_url   = require('url');
+
+const setDefault = (p, v) => (p === undefined) ? v : p;
 
 module.exports = class {
-	constructor (req, res, hr, includeMedullaCode, errorHandle, clientHTML, proxyCookieDomain) {
-		this._clientHTML = clientHTML;
-		this._errorHandle = errorHandle;
-		this._handlersRequest = hr;
-		this._proxyCookieDomain = proxyCookieDomain;
-		this._hi = -1;
+	constructor (handlersRequest, request, response, config = {}) {
+		this.handlersRequest = handlersRequest;
+		this.counter         = -1;
+		this.request         = request;
+		this.response        = response;
+		this.modifyResponse  = config.modifyResponse;
+		this.modificator     = config.modificator;
+		this.onResponseError = config.onResponseError;
+		this.getResponseBody = setDefault(config.getResponseBody, true);
+		this.autoHandle      = setDefault(config.autoHandle     , true);
 
-		this._req       = req;
-		this._res       = res;
-		this._parsedURL = mod_url.parse(this._req.url, true);
+		this.output              = '404 Not Found';
+		this.response.statusCode = 404;
+		this.response.headers    = {'content-type': "text/html; charset=utf-8"};
+		this._input              = null;
 
-		this.body            = '404 Not Found';
-		this._res.headers    = {"Content-Type": "text/html; charset=utf-8"};
-		this._res.statusCode = 404;
-		this.includeMedullaCode = includeMedullaCode;
+		if (this.autoHandle) this.handle();
+	}
 
-		if (this._req.method === 'GET') {
-			this._data = this._parsedURL.query;
-			this.next();
-		} else {//PUT, POST, DELETE, ...
-			let body = '';
-			this._req.on('data', chunk=>{
-				body += chunk;
-				if (body.length > 1e6) this._req.connection.destroy();
-			}).on('end', ()=>{
-				this._data = body;
-				this.next();
-			});
+	//Params
+	get url    () {
+		return this.request.url;
+	}
+	get method () {return this.request.method;}
+	get input  () {return this._input;}
+
+	get code   ()      {return this.response.statusCode;}
+	set code   (value) {this.response.statusCode = value;}
+
+	set (header, value) {
+		if      (typeof header === 'object') this.response.headers = header;
+		else if (typeof header === 'string') {
+			if (value) this.response.headers[header]   = value;
+			else this.response.headers['content-type'] = header;
 		}
 	}
+	get (headername) {return this.request.headers[headername];}
 
-	get url     () {return this._req.url;}
-	get method  () {return this._req.method;}
-	get headers () {return this._req.headers;}
-	get data    () {return this._data;}
+	//Methods
+	next () {
+		this.counter++;
 
-	get res     () {return this._res;}
-	get req     () {return this._req;}
+		let handler = this.handlersRequest[this.counter];
 
-	get (name)        {return this._res.headers[name];}
-	set (name, value) {this._res.headers[name] = value;}
+		if (handler) {
+			try {
+				handler(this, this.request, this.response);
+			} catch (e) {
+				if (this.onResponseError) this.onResponseError(e, this.request, this.response);
+			}
+		} else this.send();
+	};
 
-	send (body = null, code = null, headers = null) {
-		if (headers && typeof headers === 'string') headers = {"Content-Type":headers};
+	send (...params) {
+		let
+			body = null,
+			head = null,
+			code = null;
 
-		if (headers) this._res.headers    = headers;
-		if (code)    this._res.statusCode = code;
+		for (let param of params) {
+			if (typeof param === 'string') {
+				if (!body) body = param;
+				else head = {"content-type": param}
+			} else if (typeof param === 'number') {
+				code = param;
+			} else if (typeof param === 'object') {
+				head = param;
+			}
+		}
 
-		if (this.includeMedullaCode) this.body += this._clientHTML+`<script>${process.env.pluginsJS}</script>`;
-		this._res.write(body || this.body);
-		this._res.end();
-	}
+		if (body && code === null) code = 200;
 
-	pure (body = '', code = 200, headers = "text/html; charset=utf-8") {
-		this.includeMedullaCode = false;
-		this.send(body, code, headers);
-	}
+		if (body !== null) this.output              = body;
+		if (head !== null) this.response.headers    = head;
+		if (code !== null) this.response.statusCode = code;
+
+		let modify = (
+			this.modificator &&
+			this.modifyResponse &&
+			this.response.headers['content-type'] &&
+			this.response.headers['content-type'].substr(0,9) === 'text/html'
+		);
+
+		if (modify) this.output += this.modificator;
+		this.response.end(this.output);
+	};
 
 	forward (target) {
 		mod_proxy.forward(
 			target,
-			this.includeMedullaCode,
-			this._req,
-			this._res,
-			this._clientHTML,
-			this._proxyCookieDomain
+			this.request,
+			this.response,
+			this.modifyResponse,
+			this.modificator,
+			this.method === 'POST' ? this.input : ''
 		);
-	}
+	};
 
-	next () {
-		this._hi++;
-		let handler = this._handlersRequest[this._hi];
-
-		if (handler) {
-			try {
-				handler(this, this._req, this._res);
-			} catch (e) {
-				this._errorHandle(e, 'MODULE ERROR', 'none'); //Nothing
-
-				this._res.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
-				let stack = e.stack.replace(/at/g, '<br>@ at');
-				this._res.write(`
-					<head>
-						<meta charset="UTF-8">
-						<script>${process.env.pluginsJS}</script>
-					</head>
-					<body>SERVER ERROR<br><br>${stack}</body>
-				`);
-			}
-		} else this.send();
+	handle () {
+		if (this.request.method === 'GET') {
+			this._input = mod_url.parse(this.request.url).query;
+			this.next();
+		} else {
+			let body = '';
+			this.request.on('data', chunk=>{
+				body += chunk;
+				if (body.length > 1e6) this.request.connection.destroy();
+			}).on('end', ()=>{
+				this._input = body;
+				this.next();
+			});
+		}
 	}
 };

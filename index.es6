@@ -565,12 +565,18 @@ module.exports.launch = customSettings=>{
 			getRequires = require('./detectRequires.es6'),
 			mod_http    = require('http'),
 			mod_url     = require('url'),
-			mod_io      = require('./io.es6');
+			IO = require('./io.class.es6');
 
-			//proxy       = require('./proxy.es6');
-			//mod_httpi   = require('./httpi.es6');
-			//IO = require('./io.class.es6');
-			//mod_qs = require('querystring');
+		class MedullaIO extends IO {
+			get includeMedullaCode()      {return this.modifyResponse;}
+			set includeMedullaCode(value) {this.modifyResponse = value;}
+		}
+
+		//mod_io      = require('./io.es6');
+		//proxy       = require('./proxy.es6');
+		//mod_httpi   = require('./httpi.es6');
+		//IO = require('./io.class.es6');
+		//mod_qs = require('querystring');
 
 		let handlersRequest = [],
 			watchedFiles    = {},
@@ -965,6 +971,20 @@ module.exports.launch = customSettings=>{
 			requests = 0;
 		}, 60000);
 
+		const responseErrorHandler = (e, response)=>{
+			errorHandle(e, 'MODULE ERROR', 'none'); //Nothing
+
+			response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
+			let stack = e.stack.replace(/at/g, '<br>@ at');
+			response.write(`
+				<head>
+					<meta charset="UTF-8">
+					<script>${process.env.pluginsJS}</script>
+				</head>
+				<body>SERVER ERROR<br><br>${stack}</body>
+			`);
+		};
+
 		//LAUNCH
 		mod_http.createServer((request, response)=>{
 			requests++;
@@ -1001,15 +1021,11 @@ module.exports.launch = customSettings=>{
 				response.end(cnt);
 
 			//REQUEST HANDLERS
-			} else mod_io(
-				request,
-				response,
-				handlersRequest,
-				settings.includeMedullaCode,
-				errorHandle,
-				clientHTML,
-				settings.proxyCookieDomain
-			);
+			} else new MedullaIO(handlersRequest, request, response, {
+				onResponseError : responseErrorHandler,
+				modifyResponse  : settings.includeMedullaCode,
+				modificator     : clientHTML+`<script>${process.env.pluginsJS}</script>`
+			});
 
 		}).listen(settings.port);
 

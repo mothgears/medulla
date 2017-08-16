@@ -1,7 +1,8 @@
 const
 	mod_url  = require('url'),
 	mod_http = require('http'),
-	mod_zlib = require('zlib');
+	mod_zlib = require('zlib'),
+	mod_os   = require("os");
 
 const rewriteCookieDomain = (header, config)=>{
 	if (Array.isArray(header)) {
@@ -46,7 +47,9 @@ const writeHeaders = (res, proxyRes, modifyLength = null, proxyCookieDomain)=>{
 	});
 };
 
-module.exports.forward = (target, includeMedullaCode, request, response, clientHTML, proxyCookieDomain)=>{
+module.exports.forward = (target, request, response, includeMedullaCode, modificator, requestBody = null)=>{
+	const proxyCookieDomain = request.headers.host.split(':')[0];
+
 	request.headers['host'] = target;
 
 	let ph = mod_url.parse(request.url);
@@ -65,7 +68,7 @@ module.exports.forward = (target, includeMedullaCode, request, response, clientH
 				targetResponse.headers['content-type'] &&
 				targetResponse.headers['content-type'].substr(0,9) === 'text/html'
 			),
-			b = Buffer.from(clientHTML+`<script>${process.env.pluginsJS}</script>`, 'utf8'),
+			b = Buffer.from(modificator, 'utf8'),
 			body = [];
 
 		targetResponse.on('data', chunk=>{
@@ -87,6 +90,11 @@ module.exports.forward = (target, includeMedullaCode, request, response, clientH
 		});
 	});
 
-	request.on('data', chunk=>targetRequest.write(chunk, 'binary'));
-	request.on('end', ()=>targetRequest.end());
+	if (requestBody !== null) {
+		targetRequest.write(requestBody, 'binary');
+		targetRequest.end();
+	} else {
+		request.on('data', chunk=>targetRequest.write(chunk, 'binary'));
+		request.on('end', ()=>targetRequest.end());
+	}
 };
