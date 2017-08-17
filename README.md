@@ -3,12 +3,12 @@ multithreaded, no-dependency node.js server.
 
 ## Features
 - [**Multithreaded**](#common-variables) request handling.
-- **Caching files** specified files (use for scripts, styles, texts etc.)
-- **Automatically restart server** on app source changing. Set `watchForChanges: flags.WATCH_SOURCE` in configs, 
+- **Caching files**, use it for scripts, styles, texts etc.
+- **Automatic restart of the server** when app source files changing. Set `watchForChanges: flags.WATCH_SOURCE` in configs, 
 and server will do restart workers when detect changes in app modules, 
 and update cache when changed scripts (files with [prop](#main-module) `type:cached`).
 - **Built-in proxy** for forwarding requests.
-- **Logging to files** for commands `console.log() / .warn() / .error()` if set.
+- **Logging to files** for commands: `console.log() / .warn() / .error()` if set in config.
 - **Hot reload slyles and scripts, and auto refreshing page** if used special [plugin](https://www.npmjs.com/package/medulla-hotcode).
 - **Quickly start** of app developing.
 
@@ -34,7 +34,7 @@ module.exports.onRequest = (io, req, res)=>{
 
 ## Installation
 As [npm](https://www.npmjs.com/package/medulla) package  
-`npm i -S medulla`
+`npm install medulla`
   
 As [git](https://github.com/mothgears/medulla.git) repository (with examples)  
 `git clone https://github.com/mothgears/medulla.git`
@@ -167,44 +167,13 @@ module.exports.mimeTypes : {
 },
 ```
 
-Describe routes
+Describe the worker function for request handling:
 ```es6
 //myServerApp.js
 
-module.exports.routes = {
-    '':()=>{ //index page
-        return '<html><body>Hello World!</body></html>';
-    },
-    
-    'about/{beast}':(beast)=>{
-        if (beast === 'rat') return 'rat is small';
-        else if (beast === 'horse') return 'horse is big';
-        else return {code:404}
-    }
-};
-```
-if you need 'get' data in route like `mysite.net/user/marko?info=age` use:
-```es6
-'user/{name}':(name, {GET})=>{ //index page
-    return users[name][GET.info];
-},
-```
-
-**also** you may describe the worker function for manually request handling:
-```es6
-//myServerApp.js
-
-module.exports.onRequest = (request, response)=>{
-    if (request.url !== '/') return 404;
-
-    response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
-    response.write('<html><body>Hellow World!</body></html>');
-    
-    return 1; 
-    //1   - for including medulla-plugins code in responce body (use with html pages)
-    //404 - for "404 Not Found"
-    //0   - pure responce, use in other cases (json or other api data)
-    //{target:"mysite.net", includeMedullaCode:(request.url === '/')} - for proxying this request
+module.exports.onRequest = io=>{
+    if (io.url !== '/') io.send(404);
+    else                io.send('<html><body>Hellow World!</body></html>');
 };
 ```
 
@@ -224,8 +193,11 @@ and open the site in browser (e.g. `localhost:3000`)
 You may share variables between workers using `medulla.common` method like this:
 ```es6
 
-module.exports.onRequest = (request, response)=>{
-    if (request.url !== '/') return 404;
+module.exports.onRequest = io=>{
+    if (io.url !== '/') {
+        io.send(404);
+        return;
+    }
 
     //Counter of requests
     medulla.common(storage=>{
@@ -233,11 +205,8 @@ module.exports.onRequest = (request, response)=>{
         storage.sharedVariable++;
         console.info('Requests: ' + storage.sharedVariable)
     });
-
-    response.writeHeader(200, {"Content-Type": "text/html; charset=utf-8"});
-    response.write('<html><body>It works!</body></html>');
     
-    return 1; 
+    io.send('<html><body>It works!</body></html>');
 };
 ```
 #### Dashboard
@@ -248,6 +217,8 @@ You may see server status, or stop server use link: `/medulla-dashboard`
   Show module current version.
   - `stop`  
   Shutdown server.
+  - `cache-update`  
+  Cache updating.
 
 ## License
 MIT

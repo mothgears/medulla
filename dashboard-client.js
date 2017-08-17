@@ -12,7 +12,7 @@ module.exports = function () {
 				if (xhr.status === 200) {
 					document.querySelector('body').innerHTML = xhr.responseText;
 				} else {
-					if (input) input.value = 'INCORRECT';
+					if (input) input.value = '';
 				}
 			}
 		};

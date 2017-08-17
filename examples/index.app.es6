@@ -22,7 +22,6 @@ module.exports = {
 	},
 
 	onRequest (io) {
-
 		//Counter test
 
 		/*

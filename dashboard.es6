@@ -15,12 +15,12 @@ module.exports.medullaWorker = worker=>{
 		CLIENT_HTML = require('./dashboard-tpl.es6');
 
 	worker.onRequest = io=>{
-		io.includeMedullaCode = false;
-
 		if (io.url === '/medulla-dashboard.js') {
+			io.includeMedullaCode = false;
 			io.send(`(${CLIENT_JS.toString()})();`, 'application/javascript; charset=utf-8');
 
 		} else if (io.url === '/medulla-dashboard') {
+			io.includeMedullaCode = false;
 			if (io.method === 'GET') {
 
 				worker.askMaster({type:'dashboard_get'}, msg=>{

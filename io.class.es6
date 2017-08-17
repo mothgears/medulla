@@ -4,8 +4,8 @@ const mod_url   = require('url');
 const setDefault = (p, v) => (p === undefined) ? v : p;
 
 module.exports = class {
-	constructor (handlersRequest, request, response, config = {}) {
-		this.handlersRequest = handlersRequest;
+	constructor (handlers, request, response, config = {}) {
+		this.handlersRequest = handlers;
 		this.counter         = -1;
 		this.request         = request;
 		this.response        = response;

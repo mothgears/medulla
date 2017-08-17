@@ -1,5 +1,5 @@
 (()=>{
-	const h = it=>`Hello MULTI2 ${it}!`;
+	const h = it=>`Hello ${it}!`;
 
 	//SERVER SIDE CODE
 	if (typeof global === 'object' && global) {

@@ -581,7 +581,7 @@ module.exports.launch = customSettings=>{
 		let handlersRequest = [],
 			watchedFiles    = {},
 			cache           = {},
-			files           = {},
+			//files           = {},
 			templates       = [],
 			clientHTML      = '';
 
@@ -769,12 +769,14 @@ module.exports.launch = customSettings=>{
 			let keys = Object.keys(mm.fileSystem);
 			for (let key of keys) {
 				let params = mm.fileSystem[key];
+
 				if (typeof params === 'string') mm_publicAccess[key] = params;
-				else if (
-					params.type === 'file'
-					&& settings.watchForChanges !== flags.WATCH_ALL
-				) mm_publicAccess[key] = params.url;
-				else mm_watchedFiles[key] = params;
+				else if (params.type === 'file') {
+					mm_publicAccess[key] = params.url || key;
+					if (settings.watchForChanges === flags.WATCH_ALL) {
+						mm_watchedFiles[key] = params;
+					}
+				} else mm_watchedFiles[key] = params;
 			}
 		}
 
@@ -820,10 +822,10 @@ module.exports.launch = customSettings=>{
 			};
 
 			if (params) {
-				if      (params.type === 'file') files[params.url || filepath] = {
+				if      (params.type === 'file') {}/*files[params.url || filepath] = {
 					srcPath: filepath,
 					injectJSToClient : params.includeMedullaCode
-				};
+				};*/
 				else if (params.type === 'cached') {
 					try {
 						let content = code || fs.readFileSync(filepath, 'utf8');
@@ -1004,7 +1006,8 @@ module.exports.launch = customSettings=>{
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.end(cache[path].content);
 				if (cache[path].includeMedullaCode) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
-			} else if (files[path]) {
+
+			/*} else if (files[path]) {
 				if (!mt) mt = nomt(ext);
 				try {
 					let content = fs.readFileSync(files[path].srcPath);
@@ -1014,7 +1017,8 @@ module.exports.launch = customSettings=>{
 				} catch (e) {
 					response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
 					response.end('ERROR: Registred file not found on server.');
-				}
+				}*/
+
 			} else if (cnt = accessToFile(path)) {
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});

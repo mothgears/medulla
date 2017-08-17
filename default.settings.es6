@@ -8,7 +8,10 @@ module.exports = {
 	hosts             : {},
 	platforms         : {},
 	forcewatch        : false,
-	plugins           : {'./mod-ws.es6':{}, './dashboard.es6':{}},
+	plugins           : {
+		'./mod-ws.es6':{},
+		'./dashboard.es6':{}
+	},
 	watchForChanges   : flags.WATCH_SOURCE,
 	watchIgnore       : [
 		f=>f.endsWith('___jb_tmp___'),
@@ -19,8 +22,6 @@ module.exports = {
 		}
 	],
 	devMode           : process.argv.indexOf('-dev') >= 0,
-	//proxyCookieDomain : 'localhost',
-	devPlugins        : {},
 	logging           : {
 		level: flags.LOG_TRACE,
 		separatedTypes: true,

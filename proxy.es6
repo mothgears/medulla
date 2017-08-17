@@ -47,7 +47,7 @@ const writeHeaders = (res, proxyRes, modifyLength = null, proxyCookieDomain)=>{
 	});
 };
 
-module.exports.forward = (target, request, response, includeMedullaCode, modificator, requestBody = null)=>{
+module.exports.forward = (target, request, response, modifyResponse, modificator, requestBody = null)=>{
 	const proxyCookieDomain = request.headers.host.split(':')[0];
 
 	request.headers['host'] = target;
@@ -64,7 +64,7 @@ module.exports.forward = (target, request, response, includeMedullaCode, modific
 	let targetRequest = mod_http.request(options, targetResponse=>{
 
 		let modify = (
-				includeMedullaCode &&
+				modifyResponse &&
 				targetResponse.headers['content-type'] &&
 				targetResponse.headers['content-type'].substr(0,9) === 'text/html'
 			),

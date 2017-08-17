@@ -11,7 +11,7 @@ module.exports = model=>`
 		<br>
 		<span id="button_stop" style="cursor: pointer"><u>Stop/Restart server</u></span>
 		
-		`+(model.withpass?`<input type="text" placeholder="password" style="text-align: center">`:'')+`
+		`+(model.withpass?`<input type="password" placeholder="password" style="text-align: center">`:'')+`
 	</body>
 	<script src="medulla-dashboard.js"></script>
 </html>`;
