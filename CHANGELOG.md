@@ -1,6 +1,6 @@
 # Changelog
 
-## Dev
+## V 0.8.0
 ##### Changes
 - new launch and config api
 - `watchedFiles` and `publicAccess` replaced with `fileSystem` object
