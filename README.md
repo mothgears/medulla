@@ -101,7 +101,7 @@ Async logging to file for "console.log()", "console.warn()" and "console.error()
   directory for .log files.
   - `separatedTypes: true`  
   split log into several files by level.
-  
+
 - `watchIgnore: {...}`  
 Rules for ignoring files when watching
 Represents a list of functions which return true if need ignore this file or directory.
@@ -174,6 +174,15 @@ Describe the worker function for request handling:
 module.exports.onRequest = io=>{
     if (io.url !== '/') io.send(404);
     else                io.send('<html><body>Hello World!</body></html>');
+};
+```
+
+Or use it as proxy
+```es6
+//myServerApp.js
+
+module.exports.onRequest = io=>{
+    io.forward("mysite.net");
 };
 ```
 
