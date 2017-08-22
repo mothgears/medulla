@@ -2,7 +2,7 @@ const medulla = require('../index.es6');
 
 medulla.launch({
 	port: 3000,       //port
-	serverApp: "./index.app.es6", //path to your app main module
+	serverApp: "./index.srv.es6", //path to your app main module
 	watchForChanges: medulla.flags.WATCH_SOURCE, //watch only modules and cache
 	logging: { //logging params
 		dir: "logs",

@@ -28,6 +28,8 @@ module.exports.onRequest = (io, req, res)=>{
 };
 ```
 
+`node launcher.conf.js`
+
 **(!)** *module in development, this is unstable version with incomplete functional.*  
 
 ## Installation
@@ -171,7 +173,7 @@ Describe the worker function for request handling:
 
 module.exports.onRequest = io=>{
     if (io.url !== '/') io.send(404);
-    else                io.send('<html><body>Hellow World!</body></html>');
+    else                io.send('<html><body>Hello World!</body></html>');
 };
 ```
 
