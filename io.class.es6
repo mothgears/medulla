@@ -1,7 +1,9 @@
-const mod_proxy = require('./proxy.es6');
-const mod_url   = require('url');
+const
+	mod_proxy = require('./proxy.es6'),
+	mod_url   = require('url');
 
-const setDefault = (p, v) => (p === undefined) ? v : p;
+const
+	setDefault = (p, v) => (p === undefined) ? v : p;
 
 module.exports = class {
 	constructor (handlers, request, response, config = {}) {
@@ -24,9 +26,7 @@ module.exports = class {
 	}
 
 	//Params
-	get url    () {
-		return this.request.url;
-	}
+	get url    () {return this.request.url;}
 	get method () {return this.request.method;}
 	get input  () {return this._input;}
 
@@ -55,7 +55,7 @@ module.exports = class {
 				if (this.onResponseError) this.onResponseError(e, this.request, this.response);
 			}
 		} else this.send();
-	};
+	}
 
 	send (...params) {
 		let
@@ -80,16 +80,15 @@ module.exports = class {
 		if (head !== null) this.response.headers    = head;
 		if (code !== null) this.response.statusCode = code;
 
-		let modify = (
+		if (
 			this.modificator &&
 			this.modifyResponse &&
 			this.response.headers['content-type'] &&
 			this.response.headers['content-type'].substr(0,9) === 'text/html'
-		);
+		) this.output += this.modificator;
 
-		if (modify) this.output += this.modificator;
 		this.response.end(this.output);
-	};
+	}
 
 	forward (target) {
 		mod_proxy.forward(
@@ -100,7 +99,7 @@ module.exports = class {
 			this.modificator,
 			this.method === 'POST' ? this.input : ''
 		);
-	};
+	}
 
 	handle () {
 		if (this.request.method === 'GET') {

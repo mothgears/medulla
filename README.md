@@ -6,7 +6,7 @@ multithreaded, no-dependency node.js server.
 - **Caching files in memory**, use it for scripts, styles, texts etc.
 - **Automatic restart of the server** when app source files changing.
 - **Built-in proxy** for forwarding requests.
-- **Logging to files** for commands: `console.log() / .warn() / .error()` if set in config.
+- **Logging to files** for commands: `console.log() / .warn() / .error()`.
 - **Hot reload slyles and scripts, and auto refreshing page** if used special [plugin](https://www.npmjs.com/package/medulla-hotcode).
 - **Quickly start** of app developing.
 

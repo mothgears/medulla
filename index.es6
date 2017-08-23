@@ -4,17 +4,17 @@ const flags = module.exports.flags = require('./flags.es6');
 module.exports.launch = customSettings=>{
 	//LIBS
 	const
-		cluster  = require('cluster'),
-		fs       = require('fs'),
-		os       = require('os'),
-		threads  = os.cpus().length,
-		mod_path = require('path'),
+		cluster   = require('cluster'),
+		fs        = require('fs'),
+		os        = require('os'),
+		mod_path  = require('path'),
+		mimeTypes = require('./mimeTypes.json'),
+		settings  = require('./default.settings.es6'),
 		{_00, _000, dateFormat} = require('./tools.es6');
 
-	//SETTINGS
-	let settings = require('./default.settings.es6');
+	const
+		threads = os.cpus().length;
 
-	//
 	let protectedSettings = [
 		'dashboardPassword',
 		'serverDir',
@@ -24,8 +24,6 @@ module.exports.launch = customSettings=>{
 	//GLOBAL SERVER INTERFACE
 	global.medulla = {};
 
-	let mimeTypes = require('./mimeTypes.json');
-
 	const mergeSettings = mergedSettings=>{
 		let keys = Object.keys(mergedSettings);
 		for (let key of keys) {
@@ -34,15 +32,13 @@ module.exports.launch = customSettings=>{
 				let ms = mergedSettings[key];
 				if (Array.isArray(s)) {
 					for (let el of ms) {
-						if (settings[key].indexOf(el) < 0)
-							settings[key].push(el);
+						if (settings[key].indexOf(el) < 0) settings[key].push(el);
 					}
 				} else {
 					let ks = Object.keys(ms);
 					for (let k of ks) settings[key][k] = ms[k];
 				}
-			}
-			else settings[key] = mergedSettings[key];
+			} else settings[key] = mergedSettings[key];
 		}
 	};
 
@@ -93,8 +89,8 @@ module.exports.launch = customSettings=>{
 						sls = settings.logging.separatedTypes;
 
 					fs.appendFile(
-						mod_path.resolve(settings.logging.dir, (sls?(levelLabel+'s-'):'')+now+'.log'),
-						rec.value, err=>{ if (!err) writeLog(); }
+						mod_path.resolve(settings.logging.dir, `${sls?(`${levelLabel}s-`):''}${now}.log`),
+						rec.value, err=>{if (!err) writeLog();}
 					);
 				}
 			},
@@ -104,7 +100,7 @@ module.exports.launch = customSettings=>{
 
 				if (maxLevel >= level) {
 					let str = label+' '+args.join('');
-					consoleStream.push({value:str+'\n', level});
+					consoleStream.push({value: str+'\n', level});
 					writeLog();
 				}
 
@@ -122,8 +118,8 @@ module.exports.launch = customSettings=>{
 	}
 	delete settings.devPlugins;
 
-	//PLUGINS M
-	let pluginIndex = {}; //PLUGINS ORDER
+	//PLUGINS
+	let pluginIndex = {};
 	let pInd = 0;
 	let plugins = Object.keys(settings.plugins);
 	for (let plugin of plugins) {
@@ -137,7 +133,7 @@ module.exports.launch = customSettings=>{
 	}
 	let pluginsByPriority = {};
 	let prevPlugin = null;
-	plugins.sort(); //FOR IGNORE DUBLICATES
+	plugins.sort();
 	for (let plugin of plugins) {
 		plugin = require.resolve(plugin);
 		if (plugin !== prevPlugin) {
@@ -163,15 +159,28 @@ module.exports.launch = customSettings=>{
 			for (let key of keys) cluster.workers[key].send({type:'end', exitcode:2});
 		};
 
+		const sendMessage = msg=>{
+			let keys = Object.keys(cluster.workers);
+			for (let key of keys) try {
+				cluster.workers[key].send(msg);
+			} catch (e) {}
+		};
+
+		const updateCacheTotal = ()=>{
+			sendMessage({type: 'updateCache'});
+		};
+
 		//COMMANDS
 		process.openStdin().addListener("data", cmd=>{
 			cmd = cmd.toString().trim();
 			const acts = {
-				'version'      : ()=>console.info(require('./package.json').version),
+				'cache-update' : updateCacheTotal,
 				'stop'         : stopServer,
-				'cache-update' : updateCacheTotal
+				'version'      : ()=>console.info(require('./package.json').version)
 			};
-			(acts[cmd] || (()=>{console.log('command not defined')}))();
+			(
+				acts[cmd] || (()=>{console.log('command not defined')})
+			)();
 		});
 
 		//
@@ -195,25 +204,18 @@ module.exports.launch = customSettings=>{
 			commonStorage    = "{}",
 			addedFiles       = {},
 			medullaStats     = {
-				medullaLauchedTS : Date.now() / 1000,
 				medullaLauched   : dateFormat(),
-				workersLauched   : '-',
-				requests         : 0
+				medullaLauchedTS : Date.now() / 1000,
+				requests         : 0,
+				workersLauched   : '-'
 			};
 
 		const toClient = func=>{
 			if (typeof func === 'function') {
 				let body = func.toString();
-				body = body.slice(body.indexOf("{") + 1, body.lastIndexOf("}"));
+				body = body.slice(body.indexOf("{")+1, body.lastIndexOf("}"));
 				pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
 			} else pluginsJS += func;
-		};
-
-		const sendMessage = msg=>{
-			let keys = Object.keys(cluster.workers);
-			for (let key of keys) try {
-				cluster.workers[key].send(msg);
-			} catch(e){}
 		};
 
 		const onMessage = (type, handler)=> {
@@ -226,19 +228,19 @@ module.exports.launch = customSettings=>{
 			let p = require(plugin);
 			if (p.medullaMaster) {
 				let io = {
-					settings,
-					toClient,
+					cluster,
 					medullaStats,
 					onMessage,
 					sendMessage,
-					cluster,
-					stopServer
+					settings,
+					stopServer,
+					toClient
 				};
 				p.medullaMaster(io);
-				if (io.onModify)   handlersModify  .push(io.onModify);
-				if (io.onLaunch)   handlersLaunch  .push(io.onLaunch);
+				if (io.onModify)   handlersModify.push(io.onModify);
+				if (io.onLaunch)   handlersLaunch.push(io.onLaunch);
 				if (io.onShutdown) handlersShutdown.push(io.onShutdown);
-				if (io.onError)    handlersError   .push(io.onError);
+				if (io.onError)    handlersError.push(io.onError);
 			}
 			if (p.medullaWorker) workerPlugins.push(plugin);
 			if (p.medullaClient) toClient(p.medullaClient)
@@ -247,17 +249,14 @@ module.exports.launch = customSettings=>{
 		let publicSettings = {};
 		let settingsKeys = Object.keys(settings);
 		for (let sk of settingsKeys) {
-			if (protectedSettings.indexOf(sk) < 0)
-				publicSettings[sk] = settings[sk];
+			if (protectedSettings.indexOf(sk) < 0) publicSettings[sk] = settings[sk];
 		}
 		pluginsJS = 'window.medulla = {settings:'+JSON.stringify(publicSettings)+'};'+pluginsJS;
 
 		process.on('uncaughtException', err=>{
 			if (err.code === 'EPERM' && err.syscall === 'Error watching file for changes:') {
 				console.warn('Removing folder.');
-			} /*else if (err.code === 'ENOENT') {
-
-			}*/ else throw err;
+			} else throw err;
 		});
 
 		const startServer = msg=>{
@@ -268,9 +267,9 @@ module.exports.launch = customSettings=>{
 
 			for (let i = 0; i < threads; i++) {
 				let pars = {
+					mainWorker    : (i+1 === threads)?'1':'0',
 					pluginsJS,
-					workerPlugins:JSON.stringify(workerPlugins),
-					mainWorker: (i+1 === threads)?'1':'0'
+					workerPlugins : JSON.stringify(workerPlugins)
 				};
 				cluster.fork(pars).on('message', _handle);
 			}
@@ -284,8 +283,11 @@ module.exports.launch = customSettings=>{
 					//STOP ALL WORKERS
 					let keys = Object.keys(cluster.workers);
 					for (let key of keys) try {
-						cluster.workers[key].send({type: 'end', exitcode: '3'});
-					} catch(e){}
+						cluster.workers[key].send({
+							type     : 'end',
+							exitcode : '3'
+						});
+					} catch (e) {}
 				} else startServer('workers restarted');
 				ordersToStart = 0;
 			}
@@ -335,10 +337,6 @@ module.exports.launch = customSettings=>{
 			}
 
 			return false;
-		};
-
-		const updateCacheTotal = ()=>{
-			sendMessage({type : 'updateCache'});
 		};
 
 		function _handle (msg) {
@@ -403,11 +401,8 @@ module.exports.launch = customSettings=>{
 
 								if (eventType === 'rename') {
 									const testFile = type=>{
-										setTimeout(()=>{//TEST
-											//console.info('TEST:'+type);
-											fs.stat(path, function(err, stats) {
-												//console.info('STAT:'+type);
-
+										setTimeout(()=>{
+											fs.stat(path, (err, stats)=>{
 												let re = false;
 
 												if (type === 'added' && !err) {
@@ -448,10 +443,10 @@ module.exports.launch = customSettings=>{
 								if (eventType === 'change') {
 									//UPDATE ALL WORKERS
 									if (fileparam.params.type === 'cached') sendMessage({
-										type   : 'updateCache',
-										url    : fileparam.params.url || filepath,
-										path   : filepath,
-										includeMedullaCode : fileparam.params.includeMedullaCode
+										includeMedullaCode : fileparam.params.includeMedullaCode,
+										path               : filepath,
+										type               : 'updateCache',
+										url                : fileparam.params.url || filepath
 									});
 
 									for (let h of handlersModify) h(filepath, fileparam);
