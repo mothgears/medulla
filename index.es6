@@ -1,5 +1,8 @@
 const flags = module.exports.flags = require('./flags.es6');
 
+//GLOBAL SERVER INTERFACE
+global.medulla = {};
+
 //MEDULLA NODE SERVER
 module.exports.launch = customSettings=>{
 	//LIBS
@@ -20,9 +23,6 @@ module.exports.launch = customSettings=>{
 		'serverDir',
 		'serverApp'
 	];
-
-	//GLOBAL SERVER INTERFACE
-	global.medulla = {};
 
 	const mergeSettings = mergedSettings=>{
 		let keys = Object.keys(mergedSettings);
@@ -156,7 +156,7 @@ module.exports.launch = customSettings=>{
 	if (cluster.isMaster) {
 		const stopServer = ()=>{
 			let keys = Object.keys(cluster.workers);
-			for (let key of keys) cluster.workers[key].send({type:'end', exitcode:2});
+			for (let key of keys) cluster.workers[key].send({type: 'end', exitcode: 2});
 		};
 
 		const sendMessage = msg=>{
@@ -294,10 +294,10 @@ module.exports.launch = customSettings=>{
 			ordersToStart++;
 		};
 
-		const outputError = error=>{
+		const outputError = err=>{
 			console.error(
-				'\n-------------'+error.title+'-------------\n',
-				error.value,
+				'\n-------------'+err.title+'-------------\n',
+				err.value,
 				'\n--------------------------------------\n'
 			);
 		};
@@ -311,6 +311,7 @@ module.exports.launch = customSettings=>{
 			for (let key of keys) {
 				if (a[key] !== b[key]) return false;
 			}
+
 			return true;
 		};
 
@@ -325,13 +326,18 @@ module.exports.launch = customSettings=>{
 					let xpath = mod_path.resolve(tpath).split('~');
 					xpath[0] = xpath[0].slice(0, -1);
 					if (!xpath[0] || dir.startsWith(xpath[0])) {
-						xpath[1] = xpath[1].replace('*', filename).replace('?', ext);
+						xpath[1] = xpath[1]
+							.replace('*', filename)
+							.replace('?', ext);
 						let xext      = mod_path.extname(xpath[1]);
 						let xfilename = mod_path.basename(xpath[1], xext);
 						if (xext === ext && xfilename === filename) return true;
 					}
 				} else {
-					let xpath = mod_path.resolve(tpath).replace('~', dir+'/').replace('*', filename).replace('?', ext);
+					let xpath = mod_path.resolve(tpath)
+						.replace('~', dir+'/')
+						.replace('*', filename)
+						.replace('?', ext);
 					if (xpath === path) return true;
 				}
 			}
@@ -346,11 +352,15 @@ module.exports.launch = customSettings=>{
 
 				//clearInterval(indexing);
 				let fileIndex = JSON.parse(msg.fileIndex);
+
 				templates = JSON.parse(msg.templates);
 
 				let keys = Object.keys(watchers);
 				for (let filepath of keys) {
-					if (!fileIndex[filepath] || !paramsEqual(watchers[filepath].fileparam.params, fileIndex[filepath].params) ) {
+					if (
+						!fileIndex[filepath] ||
+						!paramsEqual(watchers[filepath].fileparam.params, fileIndex[filepath].params)
+					) {
 						//REMOVE WATCHER
 						if (watchers[filepath]) watchers[filepath].close();
 						delete watchers[filepath];
@@ -372,7 +382,7 @@ module.exports.launch = customSettings=>{
 						console.info(`index add: "${filepath}"` + (fileparam.url?` as "${fileparam.url}"`:''));
 
 						if (fileparam.module) {
-							let onFileChange = (eventType) => {
+							let onFileChange = eventType=>{
 								if (eventType === 'change') {
 									//RESTART OR WISH TO RESTART
 									ordersToStart = 0;
@@ -394,10 +404,6 @@ module.exports.launch = customSettings=>{
 							let onFolderChange = (eventType, f) => {
 								let path = mod_path.resolve(filepath, f).replace(/\\/g, '/');
 								for (let ign of settings.watchIgnore) if (ign(path)) return;
-
-								//let exist = fs.existsSync(mod_path.resolve(filepath, f));
-								//console.info(path + ' [' + eventType + '] '
-								//	+ (exist?'Y':'N') + '{'+watchers[path]+'}');
 
 								if (eventType === 'rename') {
 									const testFile = type=>{
@@ -480,12 +486,12 @@ module.exports.launch = customSettings=>{
 					console.info('workers launched');
 				}
 
-			} else if(msg.type === 'get_in_line') {
+			} else if (msg.type === 'get_in_line') {
 				workersQueue.push(msg.wid);
 				if (workersQueue.length === 1) {
 					cluster.workers[msg.wid].send({
-						type: 'your_turn',
-						storage: commonStorage
+						type    : 'your_turn',
+						storage : commonStorage
 					});
 				}
 			} else if (msg.type === 'free_control') {
@@ -495,8 +501,8 @@ module.exports.launch = customSettings=>{
 				if (workersQueue.length >= 1) {
 					let wid = workersQueue.shift();
 					cluster.workers[wid].send({
-						type: 'your_turn',
-						storage: msg.storage
+						type    : 'your_turn',
+						storage : msg.storage
 					});
 				}
 			} else if (msg.type === 'stats_rpm') {
@@ -504,11 +510,11 @@ module.exports.launch = customSettings=>{
 			} else if (messageHandlers[msg.type]) {
 				messageHandlers[msg.type](msg);
 			} else {
-				if (!error && msg.error) error = {value:msg.error, title:msg.title};
+				if (!error && msg.error) error = {value: msg.error, title: msg.title};
 
 				let exitcode = null;
-				if      (msg.type === 'pause'  ) exitcode = '1';
-				else if (msg.type === 'stop'   ) exitcode = '2';
+				if      (msg.type === 'pause')   exitcode = '1';
+				else if (msg.type === 'stop')    exitcode = '2';
 				else if (msg.type === 'restart') exitcode = '3';
 				else if (msg.type === 'none') {
 					if (error) {
@@ -521,15 +527,15 @@ module.exports.launch = customSettings=>{
 				if (exitcode) {
 					let keys = Object.keys(cluster.workers);
 					for (let key of keys) try {
-						cluster.workers[key].send({type:'end', exitcode});
-					} catch(e){}
+						cluster.workers[key].send({type: 'end', exitcode});
+					} catch (e) {}
 				}
 			}
 		}
 
 		cluster.on('exit', (w, code)=>{
 			exits++;
-			if (exits >= threads) { //ALL WORKERS CLOSED
+			if (exits >= threads) {
 				exits = 0;
 				lauched = 0;
 				medullaStats.totalWorkers = 0;
@@ -541,11 +547,15 @@ module.exports.launch = customSettings=>{
 					error = null;
 				}
 
-				if (code === 3) { //RESTART
+				//RESTART
+				if (code === 3) {
 					startServer('workers restarted');
-				} else if (code === 2) { //MEDULLA EXIT
+
+				//MEDULLA EXIT
+				} else if (code === 2) {
 					console.log('medulla stopped');
 					process.exit();
+
 				} else if (code ===  1) {
 					console.log('workers paused');
 				}
@@ -563,20 +573,13 @@ module.exports.launch = customSettings=>{
 			IO = require('./io.class.es6');
 
 		class MedullaIO extends IO {
-			get includeMedullaCode()      {return this.modifyResponse;}
-			set includeMedullaCode(value) {this.modifyResponse = value;}
+			get includeMedullaCode ()      {return this.modifyResponse;}
+			set includeMedullaCode (value) {this.modifyResponse = value;}
 		}
-
-		//mod_io      = require('./io.es6');
-		//proxy       = require('./proxy.es6');
-		//mod_httpi   = require('./httpi.es6');
-		//IO = require('./io.class.es6');
-		//mod_qs = require('querystring');
 
 		let handlersRequest = [],
 			watchedFiles    = {},
 			cache           = {},
-			//files           = {},
 			templates       = [],
 			clientHTML      = '';
 
@@ -586,9 +589,11 @@ module.exports.launch = customSettings=>{
 				let body = func.toString();
 				body = body.slice(body.indexOf("{") + 1, body.lastIndexOf("}"));
 				process.env.pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
+			} else if (func[0] === '<') {
+				clientHTML += func;
+			} else {
+				process.env.pluginsJS += func;
 			}
-			else if (func[0] === '<') clientHTML += func;
-			else process.env.pluginsJS += func;
 		};
 
 		//PLUGINS
@@ -596,8 +601,8 @@ module.exports.launch = customSettings=>{
 			cacheModificators = [],
 			handlersCacheModify= [];
 
-		const stopServer=()=>{
-			process.send({type:'stop'})
+		const stopServer = ()=>{
+			process.send({type: 'stop'})
 		};
 
 		let waiters = {};
@@ -617,21 +622,21 @@ module.exports.launch = customSettings=>{
 					stopServer
 				};
 				p.medullaWorker(api);
-				if (api.cacheModificator) cacheModificators  .push(api.cacheModificator);
-				if (api.onCacheModify)    handlersCacheModify.push(api.onCacheModify);
-				if (api.onRequest)        handlersRequest    .push(api.onRequest);
+				if (api.cacheModificator) cacheModificators   .push(api.cacheModificator);
+				if (api.onCacheModify)    handlersCacheModify .push(api.onCacheModify);
+				if (api.onRequest)        handlersRequest     .push(api.onRequest);
 			}
 		}
 
 		//TOOLS
 		let getCallerFile = ()=>{
 			try {
-				let err = new Error();
-				let callerfile;
-				let currentfile;
+				let err         = new Error(),
+					callerfile  = '',
+					currentfile = '';
 
 				let origin = Error.prepareStackTrace;
-				Error.prepareStackTrace = (err, stack)=>stack;
+				Error.prepareStackTrace = (e, stack)=>stack;
 				currentfile = err.stack.shift().getFileName();
 
 				while (err.stack.length) {
@@ -639,21 +644,24 @@ module.exports.launch = customSettings=>{
 
 					if (currentfile !== callerfile) {
 						Error.prepareStackTrace = origin;
+
 						return callerfile;
 					}
 				}
 
 				Error.prepareStackTrace = origin;
-			} catch (err) {}
+			} catch (e) {}
+
 			return undefined;
 		};
 
 		//CROSSEND-REQUIRE
 		let modulesParams = {};
-		medulla.require = (mdl, clientSide = null)=>{
+		global.medulla.require = (mdl, clientSide = null)=>{
 			let dir = mod_path.dirname(getCallerFile());
 			mdl = require.resolve(mod_path.resolve(dir, mdl));
 			modulesParams[mdl] = clientSide;
+
 			return require(mdl);
 		};
 
@@ -662,30 +670,35 @@ module.exports.launch = customSettings=>{
 			_proceduresQueue    = [];
 
 		//COMMON
-		medulla.common = procedure=>{
+		global.medulla.common = procedure=>{
 			_proceduresQueue.push(procedure);
-			process.send({type:'get_in_line', wid:cluster.worker.id});
+			process.send({type: 'get_in_line', wid: cluster.worker.id});
 		};
 
 		//ERROR HANDLER
-		const errorHandle = (err, title, type)=>process.send({type, error:err.stack, title});
+		const errorHandle = (err, title, type)=>process.send({type, error: err.stack, title});
 		process.on('uncaughtException', err=>{
-			if (err.stack.indexOf('bind EADDRINUSE null') >= 0) {//Port error
+			//PORT ERROR
+			if (err.stack.indexOf('bind EADDRINUSE null') >= 0) {
 				errorHandle(err, 'PORT ERROR'  , 'restart');
+
+			//CRITICAL ERROR
 			} else if (err.stack.split('at ')[1].indexOf('medulla.') >= 0) {
-				errorHandle(err, 'SERVER ERROR', 'stop'); //Critical, stop server
+				errorHandle(err, 'SERVER ERROR', 'stop');
+
+			//APP ERROR
 			} else {
-				errorHandle(err, 'MODULE ERROR', 'none'); //Nothing
+				errorHandle(err, 'MODULE ERROR', 'none');
 			}
 		});
 
 		//MESSAGE HANDLER
-		process.on('message', (msg)=>{
+		process.on('message', msg=> {
 			if (msg.type === 'updateCache') {
 				if (msg.path) {
 					let cache_trying = 5;
-					const cacheFromFile = ()=>{
-						fs.readFile(msg.path, 'utf8', (err, content)=>{
+					const cacheFromFile = () => {
+						fs.readFile(msg.path, 'utf8', (err, content) => {
 							if (err) {
 								cache_trying--;
 								if (cache_trying > 0) setTimeout(cacheFromFile, 100);
@@ -693,13 +706,14 @@ module.exports.launch = customSettings=>{
 									delete cache[msg.url];
 									for (let h of handlersCacheModify) h();
 								}
+
 								return;
 							}
 
 							for (let cm of cacheModificators) content = cm(content, msg.path, msg.url);
 							if (typeof content === 'string') cache[msg.url] = {
-								content: content,
-								srcPath: msg.path,
+								content,
+								srcPath            : msg.path,
 								includeMedullaCode : msg.includeMedullaCode
 							};
 							for (let h of handlersCacheModify) h();
@@ -714,7 +728,7 @@ module.exports.launch = customSettings=>{
 					let counter = 0;
 					for (let url of urls) {
 						counter++;
-						fs.readFile(cache[url].srcPath, 'utf8', (err, content)=>{
+						fs.readFile(cache[url].srcPath, 'utf8', (err, content) => {
 							if (err) return;
 							for (let cm of cacheModificators) content = cm(content, msg.path, msg.url);
 							if (typeof content === 'string') cache[url].content = content;
@@ -723,20 +737,20 @@ module.exports.launch = customSettings=>{
 						});
 					}
 				}
-			}
-			//else if (msg.type === 'updateClient') process.env.pluginsJS = msg.content;
-			else if (msg.type === 'end') process.exit(parseInt(msg.exitcode)); //WORKER ENDED BY MASTER
 
-			else if (msg.type === 'your_turn') {
+			//WORKER ENDED BY MASTER
+			} else if (msg.type === 'end') {
+				process.exit(parseInt(msg.exitcode, 10));
+
+			} else if (msg.type === 'your_turn') {
 				_commonStorageLocal = JSON.parse(msg.storage);
 
-				for (procedure of _proceduresQueue) procedure(_commonStorageLocal);
+				for (let procedure of _proceduresQueue) procedure(_commonStorageLocal);
 				_proceduresQueue.length = 0;
 
-				process.send({type:'free_control', storage:JSON.stringify(_commonStorageLocal)});
-			}
+				process.send({type: 'free_control', storage: JSON.stringify(_commonStorageLocal)});
 
-			else if (waiters[msg.type]) {
+			} else if (waiters[msg.type]) {
 				waiters[msg.type](msg);
 				delete waiters[msg.type];
 			}
@@ -755,8 +769,8 @@ module.exports.launch = customSettings=>{
 			} else if (typeof settings.serverApp === 'function') {
 				settings.serverApp(mm);
 			}
-		} catch(err) {
-			errorHandle(err, 'MODULE ERROR', 'pause');
+		} catch (e) {
+			errorHandle(e, 'MODULE ERROR', 'pause');
 			process.exit(1);
 		}
 
@@ -791,11 +805,21 @@ module.exports.launch = customSettings=>{
 
 			for (let tpath of tpaths) {
 				let turl = mm_publicAccess[tpath];
-				let rurl = turl.replace('~', dir+'/').replace('*', filename).replace('?', ext);
+				let rurl = turl
+					.replace('~', dir+'/')
+					.replace('*', filename)
+					.replace('?', ext);
 
 				if (mod_path.resolve(rurl) === mod_path.resolve(url)) {
-					let rpath = process.cwd() + '/' + tpath.replace('~', dir+'/').replace('*', filename).replace('?', ext);
-					try { return fs.readFileSync(rpath); } catch(err) {if (err.code === 'ENOENT') {}}
+					let rpath = process.cwd() + '/' + tpath
+						.replace('~', dir+'/')
+						.replace('*', filename)
+						.replace('?', ext);
+					try {
+						return fs.readFileSync(rpath);
+					} catch (e) {
+						if (e.code === 'ENOENT') {}
+					}
 				}
 			}
 
@@ -805,29 +829,23 @@ module.exports.launch = customSettings=>{
 		const addToWatchedFiles = (filepath, params, code = null) =>{
 			filepath = mod_path.resolve(filepath).replace(/\\/g, '/');
 
-			//IGNORING
-			/*if (!code)*/ for (let ign of settings.watchIgnore) if (ign(filepath)) return;
-			//------
+			for (let ign of settings.watchIgnore) if (ign(filepath)) return;
 
 			if (process.env.mainWorker === '1') watchedFiles[filepath] = {
-				module : Boolean(code),
-				params : (params ? params : {}),
-				url    : (params ? params.url : null),
+				module   : Boolean(code),
+				params   : (params ? params : {}),
+				url      : (params ? params.url : null),
 				mimeType : mimeTypes[mod_path.extname(filepath).slice(1)]
 			};
 
 			if (params) {
-				if      (params.type === 'file') {}/*files[params.url || filepath] = {
-					srcPath: filepath,
-					injectJSToClient : params.includeMedullaCode
-				};*/
-				else if (params.type === 'cached') {
+				if (params.type === 'cached') {
 					try {
 						let content = code || fs.readFileSync(filepath, 'utf8');
 						for (let cm of cacheModificators) content = cm(content, filepath, params.url || filepath);
 						if (typeof content === 'string') cache[params.url || filepath] = {
-							content: content,
-							srcPath: filepath,
+							content,
+							srcPath            : filepath,
 							includeMedullaCode : params.includeMedullaCode
 						};
 					} catch (err) {
@@ -866,17 +884,17 @@ module.exports.launch = customSettings=>{
 				//DIR TO WATCHED INDEX
 				dir = mod_path.resolve(dir);
 
-				const dirToWatch = dir=>{
-					for (let ign of settings.watchIgnore) if (ign(dir)) return;
+				const dirToWatch = wdir=>{
+					for (let ign of settings.watchIgnore) if (ign(wdir)) return;
 
-					if (!watchedFiles[dir]) {
-						watchedFiles[dir] = {
+					if (!watchedFiles[wdir]) {
+						watchedFiles[wdir] = {
 							module : false,
-							params : {type:'folder'}
+							params : {type: 'folder'}
 						};
-						let files = fs.readdirSync(dir);
+						let files = fs.readdirSync(wdir);
 						files.forEach(dirname => {
-							let path = mod_path.resolve(dir, dirname);
+							let path = mod_path.resolve(wdir, dirname);
 							let stat = fs.statSync(path);
 							if (stat && stat.isDirectory()) {
 								if (recursive) dirToWatch(path);
@@ -886,12 +904,12 @@ module.exports.launch = customSettings=>{
 				};
 				if (process.env.mainWorker === '1') dirToWatch(dir);
 
-				const processDir = (dir, sdir='')=>{
-					let files = fs.readdirSync(dir);
+				const processDir = (pdir, sdir='')=>{
+					let files = fs.readdirSync(pdir);
 
 					//FOR EACH FILE
 					files.forEach(filename => {
-						let path = mod_path.resolve(dir, filename);
+						let path = mod_path.resolve(pdir, filename);
 						let stat = fs.statSync(path);
 
 						let _ext = mod_path.extname(filename);
@@ -900,16 +918,16 @@ module.exports.launch = customSettings=>{
 						if (stat && stat.isDirectory()) {
 							if (recursive) processDir(path+'/', sdir+filename+'/');
 						} else if (
-							stat && stat.isFile()
-							&& (!ext || ext === _ext)
-							&& (!fln || fln === _fln)
+							stat && stat.isFile() &&
+							(!ext || ext === _ext) &&
+							(!fln || fln === _fln)
 						) {
-							let _ext = mod_path.extname(filename);
-							let _fln = mod_path.basename(filename, _ext);
+							let _subext = mod_path.extname(filename);
+							let _subfln = mod_path.basename(filename, _subext);
 
 							let fileParams = Object.assign({}, params);
-							let filePath = mod_path.resolve(dir, _fln+_ext);
-							fileParams.url = (params.url || filepath).replace('*', _fln).replace('?', _ext);
+							let filePath = mod_path.resolve(pdir, _subfln+_subext);
+							fileParams.url = (params.url || filepath).replace('*', _subfln).replace('?', _subext);
 							if (recursive) fileParams.url = fileParams.url.replace('~', sdir);
 
 							addToWatchedFiles(filePath, fileParams);
@@ -949,27 +967,28 @@ module.exports.launch = customSettings=>{
 
 		//SEND WATCHED FILES INDEX TO MASTER (ONLY FIRST WORKER)
 		if (settings.watchForChanges !== flags.WATCH_NO && process.env.mainWorker === '1') process.send({
-			type:'update_watchers',
-			fileIndex: JSON.stringify(watchedFiles),
-			templates: JSON.stringify(templates)
+			type      : 'update_watchers',
+			fileIndex : JSON.stringify(watchedFiles),
+			templates : JSON.stringify(templates)
 		});
 
 		for (let h of handlersCacheModify) h();
 
 		const nomt = ext=>{
 			console.info(`Mime type for extension "${ext}" not found, extend mime types.`);
+
 			return 'text/html';
 		};
 
 		let requests = 0;
 
 		setInterval(()=>{
-			process.send({type:'stats_rpm', value: requests});
+			process.send({type: 'stats_rpm', value: requests});
 			requests = 0;
 		}, 60000);
 
 		const responseErrorHandler = (e, response)=>{
-			errorHandle(e, 'MODULE ERROR', 'none'); //Nothing
+			errorHandle(e, 'MODULE ERROR', 'none');
 
 			response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
 			let stack = e.stack.replace(/at/g, '<br>@ at');
@@ -1002,19 +1021,7 @@ module.exports.launch = customSettings=>{
 				response.end(cache[path].content);
 				if (cache[path].includeMedullaCode) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
 
-			/*} else if (files[path]) {
-				if (!mt) mt = nomt(ext);
-				try {
-					let content = fs.readFileSync(files[path].srcPath);
-					response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
-					response.end(content);
-					if (files[path].includeMedullaCode) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
-				} catch (e) {
-					response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
-					response.end('ERROR: Registred file not found on server.');
-				}*/
-
-			} else if (cnt = accessToFile(path)) {
+			} else if ((cnt = accessToFile(path))) {
 				if (!mt) mt = nomt(ext);
 				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.end(cnt);
@@ -1028,6 +1035,6 @@ module.exports.launch = customSettings=>{
 
 		}).listen(settings.port);
 
-		process.send({type:'worker_launched'});
+		process.send({type: 'worker_launched'});
 	}
 };

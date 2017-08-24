@@ -6,23 +6,17 @@ const
 	setDefault = (p, v) => (p === undefined) ? v : p;
 
 class IO {
-	constructor (handlers, request, response, config) {
+	constructor (handlers, config) {
 		this.handlersRequest = handlers;
-		this.counter         = -1;
-		this.request         = request;
-		this.response        = response;
 		this.modifyResponse  = config.modifyResponse;
 		this.modificator     = config.modificator;
 		this.onResponseError = config.onResponseError;
 		this.getResponseBody = setDefault(config.getResponseBody, true);
-		this.autoHandle      = setDefault(config.autoHandle     , true);
 
 		this.output              = '404 Not Found';
 		this.response.statusCode = 404;
 		this.response.headers    = {'content-type': "text/html; charset=utf-8"};
 		this._input              = null;
-
-		if (this.autoHandle) this.handle();
 	}
 
 	//Params
@@ -43,6 +37,26 @@ class IO {
 	get (headername) {return this.request.headers[headername];}
 
 	//Methods
+	handle (request, response) {
+		this.counter  = -1;
+		this.request  = request;
+		this.response = response;
+
+		if (this.request.method === 'GET') {
+			this._input = mod_url.parse(this.request.url).query;
+			this.next();
+		} else {
+			let body = '';
+			this.request.on('data', chunk=>{
+				body += chunk;
+				if (body.length > 1e6) this.request.connection.destroy();
+			}).on('end', ()=>{
+				this._input = body;
+				this.next();
+			});
+		}
+	}
+
 	next () {
 		this.counter++;
 
@@ -99,22 +113,6 @@ class IO {
 			this.modificator,
 			this.method === 'POST' ? this.input : ''
 		);
-	}
-
-	handle () {
-		if (this.request.method === 'GET') {
-			this._input = mod_url.parse(this.request.url).query;
-			this.next();
-		} else {
-			let body = '';
-			this.request.on('data', chunk=>{
-				body += chunk;
-				if (body.length > 1e6) this.request.connection.destroy();
-			}).on('end', ()=>{
-				this._input = body;
-				this.next();
-			});
-		}
 	}
 }
 
