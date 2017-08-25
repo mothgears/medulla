@@ -46,8 +46,6 @@ class IO {
 		this.response.statusCode = 404;
 		this.response.setHeader('content-type', 'text/html; charset=utf-8');
 
-		//console.info('RE: '+this.response.writeHead);
-
 		if (this.request.method === 'GET') {
 			this._input = mod_url.parse(this.request.url).query;
 			this.next();
@@ -116,12 +114,13 @@ class IO {
 		if (code !== null) this.response.statusCode = code;
 		if (head !== null) this.set(head);
 
+		let ct = this.response.getHeader('content-type');
+
 		if (
-			this.modificator &&
 			this.modifyResponse &&
-			this.response.headers &&
-			this.response.headers['content-type'] &&
-			this.response.headers['content-type'].substr(0,9) === 'text/html'
+			this.modificator &&
+			ct &&
+			ct.substr(0,9) === 'text/html'
 		) this.output += this.modificator;
 
 		this.response.end(this.output);

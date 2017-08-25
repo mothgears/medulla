@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.8.2
+##### Fixes
+- fixed io modificator detection
+
 ## V 0.8.1
 ##### Improvements
 - io object is single now
