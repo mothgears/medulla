@@ -2,8 +2,8 @@ module.exports.medullaMaster = master=>{
 
 	master.onMessage('dashboard_get', ()=>{
 		master.sendMessage({
-			type:'dashboard_get',
-			data: JSON.stringify(master.medullaStats)
+			type : 'dashboard_get',
+			data : JSON.stringify(master.medullaStats)
 		});
 	});
 
@@ -12,7 +12,7 @@ module.exports.medullaMaster = master=>{
 module.exports.medullaWorker = worker=>{
 	const
 		CLIENT_JS   = require('./dashboard-client.js'),
-		CLIENT_HTML = require('./dashboard-tpl.es6');
+		client_html = require('./dashboard-tpl.es6');
 
 	worker.onRequest = io=>{
 		if (io.url === '/medulla-dashboard.js') {
@@ -23,11 +23,11 @@ module.exports.medullaWorker = worker=>{
 			io.includeMedullaCode = false;
 			if (io.method === 'GET') {
 
-				worker.askMaster({type:'dashboard_get'}, msg=>{
-					data = JSON.parse(msg.data);
+				worker.askMaster({type: 'dashboard_get'}, msg=>{
+					let data = JSON.parse(msg.data);
 					data.worktime = ((Date.now() / 1000) - data.medullaLauchedTS) / 60;
 					data.withpass = worker.settings.dashboardPassword;
-					io.send(CLIENT_HTML(data));
+					io.send(client_html(data));
 				});
 
 			} else if (io.method === 'POST') {

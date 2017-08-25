@@ -1,5 +1,13 @@
 # Changelog
 
+## V 0.8.1
+##### Improvements
+- io object is single now
+
+##### Fixes
+- fixed io header functions
+- fixed error with error handler
+
 ## V 0.8.0
 ##### Changes
 - new launch and config api

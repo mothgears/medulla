@@ -1,6 +1,6 @@
 {
   "name": "medulla",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "node.js multithreaded server with caching files, hot page/script/styles reload plugin and proxy mode",
   "main": "index.es6",
   "dependencies": {},
@@ -9,14 +9,17 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "server", "multithreaded", "files caching", "proxy"
+    "server",
+    "multithreaded",
+    "files caching",
+    "proxy"
   ],
   "author": "Artem Varshavin",
   "license": "MIT",
   "engines": {
     "node": ">=8.0.0"
   },
-  "repository" : {
+  "repository": {
     "type": "git",
     "url": "https://github.com/mothgears/medulla.git"
   }

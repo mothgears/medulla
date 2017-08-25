@@ -13,9 +13,12 @@ multithreaded, no-dependency node.js server.
 ```es6
 //launcher.conf.js
 
-const medulla = require('medulla');
-medulla.launch({
-    serverApp : "./app.js"
+require('medulla').launch({
+    serverApp : "./app.js",
+    platforms : {
+        "win32" : {"forcewatch":false},
+        "linux" : {"forcewatch":true}
+    }
 });
 ```
 
@@ -23,8 +26,7 @@ medulla.launch({
 //app.js
 
 module.exports.onRequest = (io, req, res)=>{
-    if (io.url !== '/') io.send(404);
-    else                io.send('Hello World!');
+    io.send('Hello World!');
 };
 ```
 
@@ -52,8 +54,9 @@ Create launcher (e.g. launcher.conf.js) and require medulla with some settings (
 const medulla = require('medulla');
 
 medulla.launch({
-    serverApp : "./myServerApp.js"
-    platforms :{
+    serverApp : "./myServerApp.js",
+    port      : 3000,
+    platforms : {
         "win32" : {"forcewatch":false},
         "linux" : {"forcewatch":true}
     }

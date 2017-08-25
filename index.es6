@@ -82,7 +82,7 @@ module.exports.launch = customSettings=>{
 						D = now.getUTCDate(),
 						M = now.getUTCMonth()+1,
 						Y = now.getUTCFullYear();
-					rec.value = `${_00(h)}:${_00(m)}:${_00(s)}.${_000(ms)} ${rec.value}`;
+					rec.value = `UTC ${_00(h)}:${_00(m)}:${_00(s)}.${_000(ms)} ${rec.value}`;
 					now = `${Y}-${_00(M)}-${_00(D)}`;
 
 					let levelLabel = levels[rec.level],
@@ -570,7 +570,7 @@ module.exports.launch = customSettings=>{
 			getRequires = require('./detectRequires.es6'),
 			mod_http    = require('http'),
 			mod_url     = require('url'),
-			IO = require('./io.class.es6');
+			IO = require('./io.es6');
 
 		class MedullaIO extends IO {
 			get includeMedullaCode ()      {return this.modifyResponse;}
@@ -987,19 +987,12 @@ module.exports.launch = customSettings=>{
 			requests = 0;
 		}, 60000);
 
-		const responseErrorHandler = (e, response)=>{
-			errorHandle(e, 'MODULE ERROR', 'none');
-
-			response.writeHeader(500, {"Content-Type": "text/html; charset=utf-8"});
-			let stack = e.stack.replace(/at/g, '<br>@ at');
-			response.write(`
-				<head>
-					<meta charset="UTF-8">
-					<script>${process.env.pluginsJS}</script>
-				</head>
-				<body>SERVER ERROR<br><br>${stack}</body>
-			`);
-		};
+		//IO
+		const io = new MedullaIO(handlersRequest, {
+			onResponseError : e=>errorHandle(e, 'MODULE ERROR', 'none'),
+			modifyResponse  : settings.includeMedullaCode,
+			modificator     : clientHTML+`<script>${process.env.pluginsJS}</script>`
+		});
 
 		//LAUNCH
 		mod_http.createServer((request, response)=>{
@@ -1017,21 +1010,17 @@ module.exports.launch = customSettings=>{
 				ext = mod_path.extname(cache[path].srcPath).slice(1);
 				mt = (ext && mimeTypes[ext]) ? mimeTypes[ext] : mt;
 				if (!mt) mt = nomt(ext);
-				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
+				response.writeHead(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.end(cache[path].content);
 				if (cache[path].includeMedullaCode) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
 
 			} else if ((cnt = accessToFile(path))) {
 				if (!mt) mt = nomt(ext);
-				response.writeHeader(200, {"Content-Type": mt+"; charset=utf-8"});
+				response.writeHead(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.end(cnt);
 
 			//REQUEST HANDLERS
-			} else new MedullaIO(handlersRequest, request, response, {
-				onResponseError : responseErrorHandler,
-				modifyResponse  : settings.includeMedullaCode,
-				modificator     : clientHTML+`<script>${process.env.pluginsJS}</script>`
-			});
+			} else io.handle(request, response);
 
 		}).listen(settings.port);
 
