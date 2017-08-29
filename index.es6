@@ -195,6 +195,7 @@ module.exports.launch = customSettings=>{
 			workerPlugins    = [],
 			ordersToStart    = 0,
 			watchers         = {},
+			watchTimeouts    = {},
 			onRestartEnd     = [],
 			error            = null,
 			lauched          = 0,
@@ -382,8 +383,9 @@ module.exports.launch = customSettings=>{
 						console.info(`index add: "${filepath}"` + (fileparam.url?` as "${fileparam.url}"`:''));
 
 						if (fileparam.module) {
-							let onFileChange = eventType=>{
-								if (eventType === 'change') {
+							let onFileChange = (eventType, fn)=>{
+								let onmod = (type)=>{
+									//console.log('DO CHANGE:'+type);
 									//RESTART OR WISH TO RESTART
 									ordersToStart = 0;
 									for (let h of handlersModify) h(filepath, fileparam, restartServer);
@@ -395,7 +397,18 @@ module.exports.launch = customSettings=>{
 										watchers[filepath] = fs.watch(filepath, {}, onFileChange);
 										watchers[filepath].fileparam = fileparam;
 									}
-								} else if (settings.forcewatch) watchers[filepath].noWatch = true;
+									delete watchTimeouts[fn];
+								};
+								if (eventType === 'rename') {
+									//console.log('RENAME:'+fn);
+									if (!watchTimeouts[fn]) watchTimeouts[fn] = setTimeout(onmod, 100, 'async');
+									else if (settings.forcewatch) watchers[filepath].noWatch = true;
+								} else if (eventType === 'change') {
+									//console.log('CHANGE:'+fn);
+									if (watchTimeouts[fn]) clearTimeout(watchTimeouts[fn]);
+									onmod('sync');
+									delete watchTimeouts[fn];
+								}
 							};
 							watchers[filepath] = fs.watch(filepath, {}, onFileChange);
 							watchers[filepath].fileparam = fileparam;

@@ -1,5 +1,8 @@
 # Changelog
 
+## Dev
+- fixed module update bug on Windows and some IDE
+
 ## V 0.8.2
 ##### Fixes
 - fixed io modificator detection
