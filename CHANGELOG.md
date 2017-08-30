@@ -1,7 +1,8 @@
 # Changelog
 
-## Dev
-- fixed module update bug on Windows and some IDE
+## V 0.8.3
+##### Fixes
+- fixed module/cache update bug if using some IDE
 
 ## V 0.8.2
 ##### Fixes

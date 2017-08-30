@@ -384,7 +384,7 @@ module.exports.launch = customSettings=>{
 
 						if (fileparam.module) {
 							let onFileChange = (eventType, fn)=>{
-								let onmod = (type)=>{
+								const onmod = (type)=>{
 									//console.log('DO CHANGE:'+type);
 									//RESTART OR WISH TO RESTART
 									ordersToStart = 0;
@@ -401,13 +401,12 @@ module.exports.launch = customSettings=>{
 								};
 								if (eventType === 'rename') {
 									//console.log('RENAME:'+fn);
-									if (!watchTimeouts[fn]) watchTimeouts[fn] = setTimeout(onmod, 100, 'async');
+									if (!watchTimeouts[fn]) watchTimeouts[fn] = setTimeout(onmod, 25, 'async');
 									else if (settings.forcewatch) watchers[filepath].noWatch = true;
 								} else if (eventType === 'change') {
 									//console.log('CHANGE:'+fn);
 									if (watchTimeouts[fn]) clearTimeout(watchTimeouts[fn]);
 									onmod('sync');
-									delete watchTimeouts[fn];
 								}
 							};
 							watchers[filepath] = fs.watch(filepath, {}, onFileChange);
@@ -458,8 +457,10 @@ module.exports.launch = customSettings=>{
 							watchers[filepath].fileparam = fileparam;
 
 						} else {
-							let onFileChange = eventType=>{
-								if (eventType === 'change') {
+							let onFileChange = (eventType, fn)=>{
+								const onmod = (type)=>{
+									//console.log('DO CHANGE:'+type);
+
 									//UPDATE ALL WORKERS
 									if (fileparam.params.type === 'cached') sendMessage({
 										includeMedullaCode : fileparam.params.includeMedullaCode,
@@ -476,7 +477,17 @@ module.exports.launch = customSettings=>{
 										watchers[filepath] = fs.watch(filepath, {}, onFileChange);
 										watchers[filepath].fileparam = fileparam;
 									}
-								} else if (settings.forcewatch) watchers[filepath].noWatch = true;
+									delete watchTimeouts[fn];
+								};
+								if (eventType === 'rename') {
+									//console.log('RENAME:'+fn);
+									if (!watchTimeouts[fn]) watchTimeouts[fn] = setTimeout(onmod, 25, 'async');
+									else if (settings.forcewatch) watchers[filepath].noWatch = true;
+								} else if (eventType === 'change') {
+									//console.log('CHANGE:'+fn);
+									if (watchTimeouts[fn]) clearTimeout(watchTimeouts[fn]);
+									onmod('sync');
+								}
 							};
 							watchers[filepath] = fs.watch(filepath, {}, onFileChange);
 							watchers[filepath].fileparam = fileparam;
