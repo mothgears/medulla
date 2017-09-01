@@ -384,7 +384,7 @@ module.exports.launch = customSettings=>{
 
 						if (fileparam.module) {
 							let onFileChange = (eventType, fn)=>{
-								const onmod = (type)=>{
+								const onmod = ()=>{
 									//console.log('DO CHANGE:'+type);
 									//RESTART OR WISH TO RESTART
 									ordersToStart = 0;
@@ -458,7 +458,7 @@ module.exports.launch = customSettings=>{
 
 						} else {
 							let onFileChange = (eventType, fn)=>{
-								const onmod = (type)=>{
+								const onmod = ()=>{
 									//console.log('DO CHANGE:'+type);
 
 									//UPDATE ALL WORKERS
@@ -473,9 +473,18 @@ module.exports.launch = customSettings=>{
 
 									//FORCEWATCH
 									if (settings.forcewatch && watchers[filepath].noWatch) {
-										watchers[filepath].close();
-										watchers[filepath] = fs.watch(filepath, {}, onFileChange);
-										watchers[filepath].fileparam = fileparam;
+										if (watchers[filepath]) watchers[filepath].close();
+										try {
+											watchers[filepath] = fs.watch(filepath, {}, onFileChange);
+											watchers[filepath].fileparam = fileparam;
+										} catch (e) {
+											setTimeout(()=>{
+												console.warn('used reserve watch: '+filepath);
+												if (watchers[filepath]) watchers[filepath].close();
+												watchers[filepath] = fs.watch(filepath, {}, onFileChange);
+												watchers[filepath].fileparam = fileparam;
+											}, 250);
+										}
 									}
 									delete watchTimeouts[fn];
 								};

@@ -1,5 +1,9 @@
 # Changelog
 
+## Dev
+##### Fixes
+- added reserve watch-registrator for cache/files
+
 ## V 0.8.3
 ##### Fixes
 - fixed module/cache update bug if using some IDE
