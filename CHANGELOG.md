@@ -2,7 +2,7 @@
 
 ## Dev
 ##### Fixes
-- added reserve watch-registrator for cache/files
+- added reserve watch-registrator
 
 ## V 0.8.3
 ##### Fixes
