@@ -21,7 +21,8 @@ module.exports.launch = customSettings=>{
 	let protectedSettings = [
 		'dashboardPassword',
 		'serverDir',
-		'serverApp'
+		'serverApp',
+		'loaders'
 	];
 
 	const mergeSettings = mergedSettings=>{
@@ -216,6 +217,8 @@ module.exports.launch = customSettings=>{
 				let body = func.toString();
 				body = body.slice(body.indexOf("{")+1, body.lastIndexOf("}"));
 				pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
+			} else if (func.startsWith('./') && func.endsWith('.js')) {
+				pluginsJS += fs.readFileSync(require.resolve(func), 'utf8');
 			} else pluginsJS += func;
 		};
 
@@ -618,7 +621,8 @@ module.exports.launch = customSettings=>{
 			set includeMedullaCode (value) {this.modifyResponse = value;}
 		}
 
-		let handlersRequest = [],
+		let
+			handlersRequest = [],
 			watchedFiles    = {},
 			cache           = {},
 			templates       = [],
@@ -638,9 +642,11 @@ module.exports.launch = customSettings=>{
 		};
 
 		//PLUGINS
-		let workerPlugins = JSON.parse(process.env.workerPlugins),
+		let
+			workerPlugins = JSON.parse(process.env.workerPlugins),
 			cacheModificators = [],
-			handlersCacheModify= [];
+			handlersCacheModify = [],
+			handlersEntryPoint = [];
 
 		const stopServer = ()=>{
 			process.send({type: 'stop'})
@@ -663,16 +669,18 @@ module.exports.launch = customSettings=>{
 					stopServer
 				};
 				p.medullaWorker(api);
-				if (api.cacheModificator) cacheModificators   .push(api.cacheModificator);
-				if (api.onCacheModify)    handlersCacheModify .push(api.onCacheModify);
-				if (api.onRequest)        handlersRequest     .push(api.onRequest);
+				if (api.cacheModificator)   cacheModificators.push(api.cacheModificator);
+				if (api.onCacheModify)      handlersCacheModify.push(api.onCacheModify);
+				if (api.onRequest)          handlersRequest.push(api.onRequest);
+				if (api.onEntryPointModify) handlersEntryPoint.push(api.onEntryPointModify);
 			}
 		}
 
 		//TOOLS
 		let getCallerFile = ()=>{
 			try {
-				let err         = new Error(),
+				let
+					err         = new Error(),
 					callerfile  = '',
 					currentfile = '';
 
@@ -765,13 +773,44 @@ module.exports.launch = customSettings=>{
 					delete cache[msg.url];
 					for (let h of handlersCacheModify) h();
 				} else {
+					//UPDATE CACHE BY DEPENDENTS
+					/*if (settings.clientApp) {
+						const fileSystem = {};
+
+						const addToFileSystem = m=>{
+							fileSystem[m] = {reload:'force'};
+
+							try {
+								console.info(require.resolve(m));
+							} catch (e) {
+								console.info('NO RESOLVE: '+m);
+								let depends = getRequires(fs.readFileSync(m, 'utf8'), r=>r);
+								for (let m of depends) {
+									addToFileSystem(m);
+								}
+							}
+						};
+
+						addToFileSystem(settings.clientApp);
+
+						let keys = Object.keys(fileSystem);
+						for (let key of keys) {
+							let params = fileSystem[key];
+							params.type = 'cached';
+							params.srcPath = key;
+							cache[key] = params;
+						}
+					}*/
+
 					let urls = Object.keys(cache);
 					let counter = 0;
 					for (let url of urls) {
 						counter++;
 						fs.readFile(cache[url].srcPath, 'utf8', (err, content) => {
 							if (err) return;
-							for (let cm of cacheModificators) content = cm(content, msg.path, msg.url);
+							for (let cm of cacheModificators) {
+								content = cm(content, cache[url].srcPath, url);
+							}
 							if (typeof content === 'string') cache[url].content = content;
 							counter--;
 							if (counter <= 0) for (let h of handlersCacheModify) h();
@@ -814,6 +853,29 @@ module.exports.launch = customSettings=>{
 			errorHandle(e, 'MODULE ERROR', 'pause');
 			process.exit(1);
 		}
+
+		//--\
+		if (settings.clientApp) {
+			const addToFileSystem = m=>{
+				mm.fileSystem[m] = {reload:'force'};
+
+				/*try {
+					let dir = mod_path.dirname(getCallerFile());
+					console.info('B:'+require.resolve(mod_path.resolve(dir, m)));
+				} catch (e) {
+					console.info('NO RESOLVE: '+m);
+				}*/
+
+				let depends = getRequires(fs.readFileSync(m, 'utf8'), r=>r);
+				for (let m of depends) {
+					addToFileSystem(m);
+				}
+			};
+
+			mm.fileSystem = mm.fileSystem || {};
+			addToFileSystem(settings.clientApp);
+		}
+		//--/
 
 		if (mm.fileSystem) {
 			let keys = Object.keys(mm.fileSystem);
@@ -977,10 +1039,6 @@ module.exports.launch = customSettings=>{
 				};
 
 				processDir(dir);
-
-				/*} else {
-					addToWatchedFiles(filepath, params);
-				}*/
 			}
 		}
 
