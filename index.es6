@@ -628,28 +628,34 @@ module.exports.launch = customSettings=>{
 			templates       = [],
 			clientHTML      = '';
 
+		let clientJS = process.env.pluginsJS;
+
 		//TO CLIENT
 		const toClient = func=>{
 			if (typeof func === 'function') {
 				let body = func.toString();
 				body = body.slice(body.indexOf("{") + 1, body.lastIndexOf("}"));
-				process.env.pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
+				clientJS += '\n(()=>{\n'+body+'\n})();\n';
 			} else if (func[0] === '<') {
 				clientHTML += func;
 			} else {
-				process.env.pluginsJS += func;
+				clientJS += func;
 			}
 		};
 
 		//PLUGINS
 		let
 			workerPlugins = JSON.parse(process.env.workerPlugins),
+			pluginsFileSystem = {},
 			cacheModificators = [],
-			handlersCacheModify = [],
-			handlersEntryPoint = [];
+			handlersCacheModify = [];
 
 		const stopServer = ()=>{
 			process.send({type: 'stop'})
+		};
+
+		const restartServer = ()=>{
+			process.send({type: 'restart'})
 		};
 
 		let waiters = {};
@@ -657,24 +663,6 @@ module.exports.launch = customSettings=>{
 			waiters[msg.type] = resmsg;
 			process.send(msg);
 		};
-
-		for (let plugin of workerPlugins) {
-			let p = require(plugin);
-			if (p.medullaWorker) {
-				let api = {
-					settings,
-					toClient,
-					getRequires,
-					askMaster,
-					stopServer
-				};
-				p.medullaWorker(api);
-				if (api.cacheModificator)   cacheModificators.push(api.cacheModificator);
-				if (api.onCacheModify)      handlersCacheModify.push(api.onCacheModify);
-				if (api.onRequest)          handlersRequest.push(api.onRequest);
-				if (api.onEntryPointModify) handlersEntryPoint.push(api.onEntryPointModify);
-			}
-		}
 
 		//TOOLS
 		let getCallerFile = ()=>{
@@ -703,6 +691,27 @@ module.exports.launch = customSettings=>{
 
 			return undefined;
 		};
+
+		for (let plugin of workerPlugins) {
+			let p = require(plugin);
+			if (p.medullaWorker) {
+				let api = {
+					settings,
+					toClient,
+					getRequires,
+					askMaster,
+					stopServer,
+					restartServer,
+					pluginsFileSystem
+				};
+				p.medullaWorker(api);
+				if (api.cacheModificator) cacheModificators.push(api.cacheModificator);
+				if (api.onCacheModify)    handlersCacheModify.push(api.onCacheModify);
+				if (api.onRequest)        handlersRequest.push(api.onRequest);
+			}
+		}
+
+		//if (process.env.mainWorker === '1') console.info('pluginsJS cli: '+clientJS);
 
 		//CROSSEND-REQUIRE
 		let modulesParams = {};
@@ -773,35 +782,6 @@ module.exports.launch = customSettings=>{
 					delete cache[msg.url];
 					for (let h of handlersCacheModify) h();
 				} else {
-					//UPDATE CACHE BY DEPENDENTS
-					/*if (settings.clientApp) {
-						const fileSystem = {};
-
-						const addToFileSystem = m=>{
-							fileSystem[m] = {reload:'force'};
-
-							try {
-								console.info(require.resolve(m));
-							} catch (e) {
-								console.info('NO RESOLVE: '+m);
-								let depends = getRequires(fs.readFileSync(m, 'utf8'), r=>r);
-								for (let m of depends) {
-									addToFileSystem(m);
-								}
-							}
-						};
-
-						addToFileSystem(settings.clientApp);
-
-						let keys = Object.keys(fileSystem);
-						for (let key of keys) {
-							let params = fileSystem[key];
-							params.type = 'cached';
-							params.srcPath = key;
-							cache[key] = params;
-						}
-					}*/
-
 					let urls = Object.keys(cache);
 					let counter = 0;
 					for (let url of urls) {
@@ -854,42 +834,26 @@ module.exports.launch = customSettings=>{
 			process.exit(1);
 		}
 
-		//--\
-		if (settings.clientApp) {
-			const addToFileSystem = m=>{
-				mm.fileSystem[m] = {reload:'force'};
+		mm.fileSystem = mm.fileSystem || {};
 
-				/*try {
-					let dir = mod_path.dirname(getCallerFile());
-					console.info('B:'+require.resolve(mod_path.resolve(dir, m)));
-				} catch (e) {
-					console.info('NO RESOLVE: '+m);
-				}*/
-
-				let depends = getRequires(fs.readFileSync(m, 'utf8'), r=>r);
-				for (let m of depends) {
-					addToFileSystem(m);
-				}
-			};
-
-			mm.fileSystem = mm.fileSystem || {};
-			addToFileSystem(settings.clientApp);
-		}
-		//--/
-
-		if (mm.fileSystem) {
-			let keys = Object.keys(mm.fileSystem);
-			for (let key of keys) {
-				let params = mm.fileSystem[key];
-
-				if (typeof params === 'string') mm_publicAccess[key] = params;
-				else if (params.type === 'file') {
-					mm_publicAccess[key] = params.url || key;
-					if (settings.watchForChanges === flags.WATCH_ALL) {
-						mm_watchedFiles[key] = params;
-					}
-				} else mm_watchedFiles[key] = params;
+		if (pluginsFileSystem) {
+			let keys = Object.keys(pluginsFileSystem);
+			for (let fi of keys) {
+				mm.fileSystem[fi] = pluginsFileSystem[fi];
 			}
+		}
+
+		let keys = Object.keys(mm.fileSystem);
+		for (let key of keys) {
+			let params = mm.fileSystem[key];
+
+			if (typeof params === 'string') mm_publicAccess[key] = params;
+			else if (params.type === 'file') {
+				mm_publicAccess[key] = params.url || key;
+				if (settings.watchForChanges === flags.WATCH_ALL) {
+					mm_watchedFiles[key] = params;
+				}
+			} else mm_watchedFiles[key] = params;
 		}
 
 		if (mm.mimeTypes) {
@@ -1071,7 +1035,7 @@ module.exports.launch = customSettings=>{
 			templates : JSON.stringify(templates)
 		});
 
-		for (let h of handlersCacheModify) h();
+		//for (let h of handlersCacheModify) h();
 
 		const nomt = ext=>{
 			console.info(`Mime type for extension "${ext}" not found, extend mime types.`);
@@ -1090,7 +1054,7 @@ module.exports.launch = customSettings=>{
 		const io = new MedullaIO(handlersRequest, {
 			onResponseError : e=>errorHandle(e, 'MODULE ERROR', 'none'),
 			modifyResponse  : settings.includeMedullaCode,
-			modificator     : clientHTML+`<script>${process.env.pluginsJS}</script>`
+			modificator     : clientHTML+`<script>${clientJS}</script>`
 		});
 
 		//LAUNCH
@@ -1111,7 +1075,7 @@ module.exports.launch = customSettings=>{
 				if (!mt) mt = nomt(ext);
 				response.writeHead(200, {"Content-Type": mt+"; charset=utf-8"});
 				response.end(cache[path].content);
-				if (cache[path].includeMedullaCode) response.write(clientHTML+`<script>${process.env.pluginsJS}</script>`);
+				if (cache[path].includeMedullaCode) response.write(clientHTML+`<script>${clientJS}</script>`);
 
 			} else if ((cnt = accessToFile(path))) {
 				if (!mt) mt = nomt(ext);
