@@ -1,7 +1,4 @@
 module.exports.serversideModify = (worker, url, content)=>{
-	/*let reqs = medulla.getRequires(content, r=>r);
-	medulla.clientModules = global.medulla.clientModules || {};
-	medulla.clientModules[url] = reqs;*/
 	const CODE =
 		'(require_modules = window.require_modules || {})["'+url+'"] = function (module) {\n'+ content +'\n/**/};';
 
@@ -13,12 +10,6 @@ module.exports.serversideModify = (worker, url, content)=>{
 		return null;
 	}
 };
-
-/*module.exports.serversidePrepare = (worker, path, serversidePrepare)=>{
-	let deps = medulla.clientModules[path];
-	worker.toClient(`<script src="${path}"></script>`+'\n');
-	for (let url of deps) serversidePrepare(url);
-};*/
 
 module.exports.clientsideRequire = function() {
 	return function (path) {

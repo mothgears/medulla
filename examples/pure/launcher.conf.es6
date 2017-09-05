@@ -1,4 +1,4 @@
-const medulla = require('../index.es6');
+const medulla = require('../../index.es6');
 
 medulla.launch({
 	port: 3000,       //port
@@ -13,8 +13,8 @@ medulla.launch({
 		"win32": {forcewatch:false},
 		"linux": {forcewatch:true}
 	},
-	devPlugins        : {
+	/*devPlugins: {
 		'medulla-hotcode':{}
-	},
+	},*/
 	dashboardPassword:'saturn' //password for restart server from browser
 });

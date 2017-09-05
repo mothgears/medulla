@@ -3,6 +3,7 @@
 ## Dev
 ##### Fixes
 - added reserve watch-registrator
+- included client scripts auto-linkler
 
 ## V 0.8.3
 ##### Fixes

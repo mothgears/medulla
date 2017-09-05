@@ -30,16 +30,17 @@ module.exports.medullaWorker = worker=> {
 		return content;
 	};
 
-	//console.info(worker.settings.bridge('react'));
-
 	worker.toClient('window.process = {env:{}};');
+	worker.toClient('process.env.NODE_ENV = "production";');
+	worker.toClient('window.require_modules = window.require_modules || {}');
 
-	const clientModulesMemory = [];
-	//const fullpathes = {};
-	const addToFileSystem = (mod, parent = null)=>{
+	//worker.settings.bridge = m=>require.resolve(m);
+
+	//const clientModulesMemory = [];
+	const clientModulesList = {};
+
+	const getFullPath = (mod, parent)=>{
 		let fp = mod;
-
-		//if (mod.indexOf('./') >= 0) console.info('iNX: '+mod);
 
 		if (parent) {
 			if (mod.startsWith('./') || mod.indexOf('.js') >= 0) {
@@ -55,38 +56,64 @@ module.exports.medullaWorker = worker=> {
 			} catch (e) {}
 		}
 
-		if (!fp.endsWith('.js') && !fp.endsWith('.es6') && !fp.endsWith('.jsx')) {
-			fp += '.js';
-		}
+		if (mod_path.extname(fp) === '') fp += '.js';
+
+		return fp;
+	};
+
+	const addToFileSystem = (mod, parent = null)=>{
+		let fp = getFullPath(mod, parent);
+		//fp, mod
 
 		let content = '';
 
-		try {
-			content = mod_fs.readFileSync(mod, 'utf8');
-		} catch (e) {
-			content = mod_fs.readFileSync(fp, 'utf8');
-			//if (fp.indexOf('reactProdInvariant') >= 0) console.info('included: '+fp);
-			const CODE = '\n(require_modules = window.require_modules || {})["'+mod+'"] = function (module) {\n'+ content +'\n/**/};';
-			worker.toClient(CODE);
-			mod = null;
-		}
+		/*if (process.env.mainWorker === '1')
+			if (fp.indexOf('invariant') >= 0)
+				console.info('included: '+mod);*/
 
-		let depends = worker.getRequires(content, r=>r, (process.env.mainWorker === '1')?fp:null);
-		//if (process.env.mainWorker === '1') console.info('MOD: ['+fp+']');
-		//if (process.env.mainWorker === '1') console.info(depends);
-		for (let m of depends) addToFileSystem(m, mod_path.dirname(fp));
+		if (!clientModulesList[fp]) {
+			let isFP = false;
 
-		if (mod) {
-			worker.pluginsFileSystem[mod] = {reload:'force'};
-			clientModulesMemory.push(mod);
+			try {
+				content = mod_fs.readFileSync(mod, 'utf8');
+			} catch (e) {
+				content = mod_fs.readFileSync(fp, 'utf8');
+				isFP = true;
+			}
+
+			let depends = worker.getRequires(content, r=>r, (process.env.mainWorker === '1')?fp:null);
+			for (let m of depends) addToFileSystem(m, mod_path.dirname(fp));
+
+			if (isFP) {
+				const CODE =
+					'\nrequire_modules["'+fp+'"] = function (module) {\n'+ content +'\n/**/};'
+					+'\nrequire_modules["'+mod+'"] = require_modules["'+fp+'"];';
+				worker.toClient(CODE);
+			} else {
+				worker.pluginsFileSystem[mod] = {reload:'force'};
+				//clientModulesMemory.push(mod);
+			}
+
+			clientModulesList[fp] = {isFP, mods: [mod]};
+		} else {
+			if (
+				clientModulesList[fp].isFP &&
+				clientModulesList[fp].mods.indexOf(mod) < 0
+			) {
+				clientModulesList[fp].mods.push(mod);
+				const CODE = '\nrequire_modules["'+mod+'"] = require_modules["'+fp+'"];';
+				worker.toClient(CODE);
+			}
 		}
 	};
 
-	const checkFileSystem = (mod)=>{
-		let depends = worker.getRequires(mod_fs.readFileSync(mod, 'utf8'), r=>r);
+	const checkFileSystem = (mod, parent)=>{
+		let fp = getFullPath(mod, parent);
+
+		let depends = worker.getRequires(mod_fs.readFileSync(fp, 'utf8'), r=>r);
 		let added = false;
-		for (let m of depends) added = added || checkFileSystem(mod);
-		return (clientModulesMemory.indexOf(mod) < 0) || added;
+		for (let m of depends) added = added || checkFileSystem(m, mod_path.dirname(fp));
+		return !clientModulesList[fp] || added;
 	};
 
 	addToFileSystem(worker.settings.clientApp);
