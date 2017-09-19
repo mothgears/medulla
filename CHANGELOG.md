@@ -1,9 +1,15 @@
 # Changelog
 
-## Dev
+## V 0.9.0
+##### Changes
+- changed launch interface
+- hotcode plugin included to package
+
+##### Improvements
+- included client scripts auto-linkler
+
 ##### Fixes
 - added reserve watch-registrator
-- included client scripts auto-linkler
 
 ## V 0.8.3
 ##### Fixes

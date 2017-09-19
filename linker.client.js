@@ -30,5 +30,5 @@ function loaderByModulePath (path) {
 }
 
 window.addEventListener('load', function () {
-	require(window.medulla.settings.clientApp);
+	require(window.medulla.settings.clientEntryPoint);
 });

@@ -21,7 +21,7 @@ module.exports.launch = customSettings=>{
 	let protectedSettings = [
 		'dashboardPassword',
 		'serverDir',
-		'serverApp',
+		'serverEntryPoint',
 		'loaders'
 	];
 
@@ -45,6 +45,9 @@ module.exports.launch = customSettings=>{
 
 	//ADD CUSTOM SETTINGS
 	mergeSettings(customSettings);
+
+	if (settings.clientEntryPoint) {settings.plugins['./linker.es6'] = {}}
+	if (settings.hotcode && settings.hotcode.enabled && settings.devMode) {settings.plugins['./hotcode.es6'] = {}}
 
 	let platformSettings = settings.platforms[process.platform];
 	if (platformSettings) mergeSettings(platformSettings);
@@ -824,10 +827,10 @@ module.exports.launch = customSettings=>{
 			mm_watchedFiles = {};
 
 		try {
-			if (typeof settings.serverApp === 'string') {
-				mm = require(mod_path.resolve(settings.serverDir, settings.serverApp))
-			} else if (typeof settings.serverApp === 'function') {
-				settings.serverApp(mm);
+			if (typeof settings.serverEntryPoint === 'string') {
+				mm = require(mod_path.resolve(settings.serverDir, settings.serverEntryPoint))
+			} else if (typeof settings.serverEntryPoint === 'function') {
+				settings.serverEntryPoint(mm);
 			}
 		} catch (e) {
 			errorHandle(e, 'MODULE ERROR', 'pause');

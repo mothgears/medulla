@@ -4,7 +4,8 @@ module.exports = {
 	port              : 3000,
 	wsPort            : 9000,
 	serverDir         : process.cwd(),
-	serverApp         : './app.js',
+	serverEntryPoint  : './server.js',
+	clientEntryPoint  : null,
 	hosts             : {},
 	platforms         : {},
 	forcewatch        : false,
@@ -12,6 +13,7 @@ module.exports = {
 		'./mod-ws.es6':{},
 		'./dashboard.es6':{}
 	},
+	devPlugins        : {},
 	watchForChanges   : flags.WATCH_SOURCE,
 	watchIgnore       : [
 		f=>f.endsWith('___jb_tmp___'),
@@ -28,5 +30,15 @@ module.exports = {
 		dir: process.cwd()
 	},
 	dashboardPassword : null,
-	includeMedullaCode: true
+	includeMedullaCode: true,
+	hotcode: {
+		enabled: true,
+		showtraces: true,
+		autoreload: 0
+	},
+	loaders    : {
+		".js .es6" : "./loaders/loader-js.es6",
+		".css"     : "./loaders/loader-css.es6"
+	},
+	bundler: m=>require.resolve(m)
 };

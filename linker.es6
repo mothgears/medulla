@@ -32,11 +32,8 @@ module.exports.medullaWorker = worker=> {
 
 	worker.toClient('window.process = {env:{}};');
 	worker.toClient('process.env.NODE_ENV = "production";');
-	worker.toClient('window.require_modules = window.require_modules || {}');
+	worker.toClient('window.require_modules = window.require_modules || {};');
 
-	//worker.settings.bridge = m=>require.resolve(m);
-
-	//const clientModulesMemory = [];
 	const clientModulesList = {};
 
 	const getFullPath = (mod, parent)=>{
@@ -47,12 +44,12 @@ module.exports.medullaWorker = worker=> {
 				fp = mod_path.resolve(parent, mod);
 			} else {
 				try {
-					fp = worker.settings.bridge(mod);
+					fp = worker.settings.bundler(mod);
 				} catch (e) {}
 			}
 		} else {
 			try {
-				fp = worker.settings.bridge(mod);
+				fp = worker.settings.bundler(mod);
 			} catch (e) {}
 		}
 
@@ -116,11 +113,11 @@ module.exports.medullaWorker = worker=> {
 		return !clientModulesList[fp] || added;
 	};
 
-	addToFileSystem(worker.settings.clientApp);
+	addToFileSystem(worker.settings.clientEntryPoint);
 
 	//[!] MODIFY CACHE
 	worker.onCacheModify = ()=>{
-		if (checkFileSystem(worker.settings.clientApp)) {
+		if (checkFileSystem(worker.settings.clientEntryPoint)) {
 			worker.restartServer();
 		}
 	}

@@ -1,20 +1,30 @@
 # Medulla
-multithreaded, no-dependency node.js server.
+Multithreaded node.js server.  
+**(!)** *module in development, this is unstable version with incomplete functional.*  
 
 ## Features
 - [**Multithreaded**](#common-variables) request handling.
 - **Caching files in memory**, use it for scripts, styles, texts etc.
+- **Linking and packing client scripts as modules with "exports/require" functions like Node** (use Babel if you need es6 notation)
 - **Automatic restart of the server** when app source files changing.
 - **Built-in proxy** for forwarding requests.
 - **Logging to files** for commands: `console.log() / .warn() / .error()`.
-- **Hot reload slyles and scripts, and auto refreshing page** if used special [plugin](https://www.npmjs.com/package/medulla-hotcode).
+- **Hot reload slyles and scripts, and auto refreshing page**
 - **Quickly start** of app developing.
 
-```es6
-//launcher.conf.js
+## Examples
+#### Simple "Hello World!"
+- `project/`
+  - `node_modules/`
+  - `package.json`
+  - **`launcher.conf.es6`**
+  - **`server.es6`**
 
+**launcher.conf.es6**
+```es6
 require('medulla').launch({
-    serverApp : "./app.js",
+    serverEntryPoint: "./server.es6",
+    port: 3000,
     platforms : {
         "win32" : {"forcewatch":false},
         "linux" : {"forcewatch":true}
@@ -22,28 +32,72 @@ require('medulla').launch({
 });
 ```
 
+**server.es6**
 ```es6
-//app.js
-
 module.exports.onRequest = (io, req, res)=>{
     io.send('Hello World!');
 };
 ```
 
-`node launcher.conf.js`
+**To start**  
+Command: `node launcher.conf.es6 -dev`  
+Open in browser: `localhost:3000`
 
-**(!)** *module in development, this is unstable version with incomplete functional.*  
+#### Clientside "Hello world!" with scripts autoloading
+- `project/`
+  - `node_modules/`
+  - `package.json`
+  - **`launcher.conf.es6`**
+  - **`server.es6`**
+  - **`client.js`**
+  - **`say-hello.js`**
+
+**launcher.conf.js**
+```es6
+require('medulla').launch({
+    serverEntryPoint : "./server.es6",
+    clientEntryPoint : "./client.js",
+    port: 3000,
+    platforms : {
+        "win32" : {"forcewatch":false},
+        "linux" : {"forcewatch":true}
+    },
+    bundler: m=>require.resolve(m)
+});
+```
+
+**server.es6**
+```es6
+module.exports.onRequest = (io, req, res)=>{
+    io.send('<div class="hello-container"></div>');
+};
+```
+
+**client.js**
+```js
+var sayHello = require('say-hello.js').default;
+
+var container = document.querySelector('div.hello-container');
+sayHello(container, 'world');
+```
+
+**say-hello.js**
+```js
+exports.default = function (container, word) {
+	container.innerHTML = 'Hello ' + word + '!';
+};
+```
+
+**To start**  
+Command: `node launcher.conf.es6 -dev`  
+Open in browser: `localhost:3000`
 
 ## Installation
 As [npm](https://www.npmjs.com/package/medulla) package  
-`npm install medulla`
+`npm i medulla`
   
 As [git](https://github.com/mothgears/medulla.git) repository (with examples)  
 `git clone https://github.com/mothgears/medulla.git`
-
-## Plugins
-- [medulla-hotcode](https://www.npmjs.com/package/medulla-hotcode)  
-Plugin for hot reload pages, scripts and styles directly in browser.
 
 ## Usage
 #### Server launcher and config
@@ -54,7 +108,7 @@ Create launcher (e.g. launcher.conf.js) and require medulla with some settings (
 const medulla = require('medulla');
 
 medulla.launch({
-    serverApp : "./myServerApp.js",
+    serverEntryPoint : "./myServerApp.js",
     port      : 3000,
     platforms : {
         "win32" : {"forcewatch":false},
@@ -65,8 +119,11 @@ medulla.launch({
 **(!)** *if you change this file, you need restart medulla manually.*  
 
 List of all available settings with default values:
-- `serverApp: "./app.js"`  
-Path to your app entry point.
+- `serverEntryPoint: "./server.js"`  
+Path to your app server scripts entry point.
+
+- `clientEntryPoint: null`  
+Path to your app client scripts entry point, set if you need linking and packing scripts
 
 - `serverDir: process.cwd()`  
 Path to app dir.
@@ -87,14 +144,8 @@ Individual configs for specific platforms (process.platform) in format "platform
 - `hosts: {}`  
 Individual configs for specific hosts (os.hostname()) in format "hostname" : {"setting":"value"}.
 
-- `pluging: {}`  
-Server plugins in format "pluginModuleName" : "{plugin-settings}".
-
-- `devPlugins: {}`  
-This plugins used only in dev mode (-dev).
-
 - `devMode: false`  
-If set "true", the devPlugins will be included.
+If set "true", server working in the devMode.
 
 - `logging: {level:flags.LOG_TRACE, dir:process.cwd(), separatedTypes:true}`  
 Async logging to file for "console.log()", "console.warn()" and "console.error()" methods.  
@@ -105,8 +156,16 @@ Async logging to file for "console.log()", "console.warn()" and "console.error()
   - `separatedTypes: true`  
   split log into several files by level.
 
+- `hotcode: {enabled:true, autoreload: 0, showtraces: true}`  
+Hot reload pages, scripts and styles directly in browser (work only if `devMode` is true).
+(Also, you may using it with apache / nginx or other third-party servers, just set medulla as proxy.)
+  - `autoreload: 0`  
+  Period in ms between last "lazy reload" file change and automatically page refreshing. If set as '0', then page refresh after "lazy reload" only when cursor will be moved in browser window or if "force reload" file will be changed.
+  - `showtraces: true`  
+  If set true, all changes will display in console.
+
 - `watchIgnore: {...}`  
-Rules for ignoring files when watching
+Rules for ignoring files when watching.
 Represents a list of functions which return true if need ignore this file or directory.
 
 - `dashboardPassword: null`  
@@ -132,7 +191,7 @@ module.exports.fileSystem = {
 };
 ```
 
-**(!)** *don't describe modules in "fileSystem" list, all required modules added automatically.*  
+**(!)** *don't describe server/client modules in "fileSystem" list, all required modules added automatically.*  
 **(!)** *for watched files will be create watchers, therefore on some OS, directories which contain this files/folders may be blocked for rename or delete.*  
 
 - `~`  
@@ -150,6 +209,17 @@ Add file content to variable (for each worker).
 Will read file from disc in every request.  
 - `includeMedullaCode:false`  
 If set is true, medulla js code (plugins) will be included to this page (use for all html-pages).
+
+**Hotcode**
+- `reload: "lazy"`  
+Default value, page will reload when file changed and cursor will be moved in browser window.
+
+- `reload: "hot"`  
+Set this value for file (css or js script) so that it reloaded without refreshing the page.  
+**(!)** *for script files recommended use **only** in the case, if they contains solely functions without side effects.*
+
+- `reload: "force"`  
+Page will reload immediately when file changed.
   
 Default url is path to file, but you may specify it directly use `url` param.  
 
@@ -229,8 +299,6 @@ You may see server status, or stop server use link: `/medulla-dashboard`
   Show module current version.
   - `stop`  
   Shutdown server.
-  - `cache-update`  
-  Cache updating.
 
 ## License
 MIT
