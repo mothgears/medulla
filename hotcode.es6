@@ -70,7 +70,7 @@ module.exports.medullaClient = ()=>{
 
 	const
 		AUTORELOAD = window.medulla.settings.hotcode.autoreload || 0,
-		SHOWTRACES = (window.medulla.settings.hotcode.showtraces === undefined)?true:window.medulla.settings.showtraces,
+		SHOWTRACES = (window.medulla.settings.hotcode.showtraces === undefined)?true:window.medulla.settings.hotcode.showtraces,
 		HTMLMAP = {
 			'&': '&amp;',
 			'<': '&lt;',
