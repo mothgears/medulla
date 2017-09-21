@@ -1,8 +1,8 @@
 const
 	mod_url  = require('url'),
 	mod_http = require('http'),
-	mod_zlib = require('zlib'),
-	mod_os   = require("os");
+	mod_zlib = require('zlib');
+	//mod_os   = require("os");
 
 const rewriteCookieDomain = (header, config)=>{
 	if (Array.isArray(header)) {
@@ -62,6 +62,7 @@ module.exports.forward = (target, request, response, modifyResponse, modificator
 		method  : request.method
 	};
 	let targetRequest = mod_http.request(options, targetResponse=>{
+		//console.log('RESPO!');
 
 		let modify = (
 				modifyResponse &&
@@ -93,6 +94,7 @@ module.exports.forward = (target, request, response, modifyResponse, modificator
 	if (requestBody !== null) {
 		targetRequest.write(requestBody, 'binary');
 		targetRequest.end();
+		//console.log(options);
 	} else {
 		request.on('data', chunk=>targetRequest.write(chunk, 'binary'));
 		request.on('end', ()=>targetRequest.end());
