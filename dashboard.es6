@@ -31,14 +31,17 @@ module.exports.medullaWorker = worker=>{
 				});
 
 			} else if (io.method === 'POST') {
-				let data = JSON.parse(io.input);
+				io.input.then(data=>{
+					data = JSON.parse(data);
 
-				if (data.act === 'stop') {
-					if (!worker.settings.dashboardPassword || data.key === worker.settings.dashboardPassword) {
-						io.send('SERVER STOPPED/RESTARTED.');
-						worker.stopServer();
-					} else io.send(403);
-				}
+					if (data.act === 'stop') {
+						if (!worker.settings.dashboardPassword || data.key === worker.settings.dashboardPassword) {
+							io.send('SERVER STOPPED/RESTARTED.');
+							worker.stopServer();
+						} else io.send(403);
+					}
+				});
+
 			}
 		} else io.next();
 	}

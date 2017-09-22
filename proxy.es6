@@ -47,7 +47,7 @@ const writeHeaders = (res, proxyRes, modifyLength = null, proxyCookieDomain)=>{
 	});
 };
 
-module.exports.forward = (target, request, response, modifyResponse, modificator, requestBody = null)=>{
+module.exports.forward = (target, request, response, modifyResponse, modificator/*, requestBody = null*/)=>{
 	const proxyCookieDomain = request.headers.host.split(':')[0];
 
 	request.headers['host'] = target;
@@ -77,6 +77,7 @@ module.exports.forward = (target, request, response, modifyResponse, modificator
 		});
 		targetResponse.on('end' , ()=>{
 			body = Buffer.concat(body);
+
 			if (modify) {
 				if (targetResponse.headers['content-encoding'] === 'gzip')
 					body = mod_zlib.gzipSync(Buffer.concat([mod_zlib.unzipSync(body), b]));
@@ -91,12 +92,12 @@ module.exports.forward = (target, request, response, modifyResponse, modificator
 		});
 	});
 
-	if (requestBody !== null) {
+	/*if (requestBody !== null) {
+		console.info(requestBody);
 		targetRequest.write(requestBody, 'binary');
 		targetRequest.end();
-		//console.log(options);
-	} else {
-		request.on('data', chunk=>targetRequest.write(chunk, 'binary'));
-		request.on('end', ()=>targetRequest.end());
-	}
+	} else {*/
+	request.on('data', chunk=>targetRequest.write(chunk, 'binary'));
+	request.on('end', ()=>targetRequest.end());
+	//}
 };

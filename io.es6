@@ -48,17 +48,22 @@ class IO {
 
 		if (this.request.method === 'GET') {
 			this._input = mod_url.parse(this.request.url).query;
-			this.next();
 		} else {
-			let body = '';
-			this.request.on('data', chunk=>{
-				body += chunk;
-				if (body.length > 1e6) this.request.connection.destroy();
-			}).on('end', ()=>{
-				this._input = body;
-				this.next();
+			this._input = new Promise((res, rej)=>{
+				try {
+					let body = [];
+					this.request.on('data', chunk=>{
+						body.push(chunk);
+						//if (body.length > 1e6) this.request.connection.destroy();
+					}).on('end', ()=>{
+						body = Buffer.concat(body);
+						this._input = body;
+						res(body);
+					});
+				} catch (err) {rej(err);}
 			});
 		}
+		this.next();
 	}
 
 	next () {
@@ -132,8 +137,8 @@ class IO {
 			this.request,
 			this.response,
 			this.modifyResponse,
-			this.modificator,
-			this.method === 'POST' ? this.input : ''
+			this.modificator/*,
+			this.method === 'POST' ? this.input : ''*/
 		);
 	}
 }

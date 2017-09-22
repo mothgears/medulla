@@ -1,15 +1,17 @@
 # Changelog
 
-## V 0.9.0
+## V 0.9.0 (dev)
 ##### Changes
 - changed launch interface
 - hotcode plugin included to package
+- io.input changed to Promise if POST
 
 ##### Improvements
 - included client scripts auto-linkler
 
 ##### Fixes
 - added reserve watch-registrator
+- fixed proxy post
 
 ## V 0.8.3
 ##### Fixes
