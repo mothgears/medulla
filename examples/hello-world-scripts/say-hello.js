@@ -1,3 +1,3 @@
-module.exports = function (container, word) {
+function sayHello (container, word) {
 	container.innerHTML = 'Hello ' + word + '!';
 };
