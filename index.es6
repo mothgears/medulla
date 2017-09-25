@@ -263,7 +263,10 @@ module.exports.launch = customSettings=>{
 		process.on('uncaughtException', err=>{
 			if (err.code === 'EPERM' && err.syscall === 'Error watching file for changes:') {
 				console.warn('Removing folder.');
-			} else throw err;
+			} else {
+				//stopServer();
+				throw err;
+			}
 		});
 
 		const startServer = msg=>{

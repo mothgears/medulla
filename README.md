@@ -1,6 +1,5 @@
 # Medulla
 Multithreaded node.js server.  
-**(!)** *module in development, this is unstable version with incomplete functional.*  
 
 ## Features
 - [**Multithreaded**](#common-variables) request handling.
@@ -11,6 +10,8 @@ Multithreaded node.js server.
 - **Logging to files** for commands: `console.log() / .warn() / .error()`.
 - **Hot reload slyles and scripts, and auto refreshing page**
 - **Quickly start** of app developing.
+
+**(!)** *module in development, this is unstable version with incomplete functional.*  
 
 ## Examples
 #### Simple "Hello World!"
@@ -147,7 +148,7 @@ Individual configs for specific hosts (os.hostname()) in format "hostname" : {"s
 - `devMode: false`  
 If set "true", server working in the devMode.
 
-- `logging: {level:flags.LOG_TRACE, dir:process.cwd(), separatedTypes:true}`  
+- `logging: {level: flags.LOG_TRACE, dir: process.cwd(), separatedTypes: true}`  
 Async logging to file for "console.log()", "console.warn()" and "console.error()" methods.  
   - `level: flags.LOG_TRACE`  
   min level for logging, can be: medulla.flags.LOG_TRACE, LOG_WARNING or LOG_ERROR.
@@ -156,11 +157,9 @@ Async logging to file for "console.log()", "console.warn()" and "console.error()
   - `separatedTypes: true`  
   split log into several files by level.
 
-- `hotcode: {enabled:true, autoreload: 0, showtraces: true}`  
+- `hotcode: {enabled: true, showtraces: true}`  
 Hot reload pages, scripts and styles directly in browser (work only if `devMode` is true).
 (Also, you may using it with apache / nginx or other third-party servers, just set medulla as proxy.)
-  - `autoreload: 0`  
-  Period in ms between last "lazy reload" file change and automatically page refreshing. If set as '0', then page refresh after "lazy reload" only when cursor will be moved in browser window or if "force reload" file will be changed.
   - `showtraces: true`  
   If set true, all changes will display in console.
 

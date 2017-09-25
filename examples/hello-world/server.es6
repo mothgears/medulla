@@ -1,1 +1,0 @@
-module.exports.onRequest = io=>io.send('Hello World!');

@@ -1,0 +1,4 @@
+Hello World on server using modules
+
+To start:
+node launcher.conf.es6

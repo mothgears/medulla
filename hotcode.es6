@@ -64,6 +64,8 @@ module.exports.medullaMaster = io=>{
 //CLIENT
 //----------------------------------------------------------------------------------------------------------------------
 module.exports.medullaClient = ()=>{
+	console.log(`%cHotcode launched`, "color: #6b0");
+
 	let serverChanged   = false,
 		serverCorrupted = false,
 		autoReloadT     = null;
