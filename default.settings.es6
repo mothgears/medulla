@@ -25,7 +25,7 @@ module.exports = {
 	],
 	devMode           : process.argv.indexOf('-dev') >= 0,
 	logging           : {
-		level: flags.LOG_TRACE,
+		level: flags.LOG_WARNING,
 		separatedTypes: true,
 		dir: process.cwd()
 	},

@@ -148,7 +148,7 @@ Individual configs for specific hosts (os.hostname()) in format "hostname" : {"s
 - `devMode: false`  
 If set "true", server working in the devMode.
 
-- `logging: {level: flags.LOG_TRACE, dir: process.cwd(), separatedTypes: true}`  
+- `logging: {level: flags.LOG_WARNING, dir: process.cwd(), separatedTypes: true}`  
 Async logging to file for "console.log()", "console.warn()" and "console.error()" methods.  
   - `level: flags.LOG_TRACE`  
   min level for logging, can be: medulla.flags.LOG_TRACE, LOG_WARNING or LOG_ERROR.
