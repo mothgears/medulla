@@ -1,6 +1,6 @@
 require('medulla').launch({
-	serverEntryPoint : "./server.es6",
-	clientEntryPoint : "./client.js",
+	serverEntryPoint : "./server.app.es6",
+	clientEntryPoint : "./client.app.js",
 	platforms : {
 		"win32" : {"forcewatch":false},
 		"linux" : {"forcewatch":true}

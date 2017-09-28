@@ -435,19 +435,19 @@ module.exports.launch = customSettings=>{
 								for (let ign of settings.watchIgnore) if (ign(path)) return;
 
 								if (eventType === 'rename') {
-									const testFile = type=>{
-										setTimeout(()=>{
-											fs.stat(path, (err, stats)=>{
+									const testFile = type => {
+										setTimeout(() => {
+											fs.stat(path, (err, stats) => {
 												let re = false;
 
 												if (type === 'added' && !err) {
 													if (stats.isDirectory() || fileIsUponTemplate(path)) {
-														console.info(type+': '+path);
+														console.info(type + ': ' + path);
 														re = true;
 														addedFiles[path] = true;
 													}
 												} else if (type === 'removed' && err) {
-													console.info(type+': '+path);
+													console.info(type + ': ' + path);
 													re = true;
 													delete addedFiles[path];
 													if (watchers[path]) {
@@ -472,6 +472,9 @@ module.exports.launch = customSettings=>{
 							};
 							watchers[filepath] = fs.watch(filepath, {}, onFolderChange);
 							watchers[filepath].fileparam = fileparam;
+
+						} else if (fileparam.params.bundle && !settings.devMode) {
+							restartServer();
 
 						} else {
 							let onFileChange = (eventType, fn)=>{

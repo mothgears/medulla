@@ -60,7 +60,6 @@ module.exports.medullaWorker = worker=> {
 
 	const addToFileSystem = (mod, parent = null)=>{
 		let fp = getFullPath(mod, parent);
-		//fp, mod
 
 		let content = '';
 
@@ -87,8 +86,7 @@ module.exports.medullaWorker = worker=> {
 					+'\nrequire_modules["'+mod+'"] = require_modules["'+fp+'"];';
 				worker.toClient(CODE);
 			} else {
-				worker.pluginsFileSystem[mod] = {reload:'force'};
-				//clientModulesMemory.push(mod);
+				worker.pluginsFileSystem[mod] = {bundle:true, reload:'force'};
 			}
 
 			clientModulesList[fp] = {isFP, mods: [mod]};
