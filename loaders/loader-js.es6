@@ -11,6 +11,8 @@ module.exports.serversideModify = (worker, url, content)=>{
 	}
 };
 
+module.exports.params = {bundle:true, reload:'force'};
+
 module.exports.clientsideRequire = function() {
 	return function (path) {
 		var m = window.require_modules[path];

@@ -35,8 +35,21 @@ module.exports.medullaMaster = io=>{
 		//if (oldv) surl = surl+'?'+oldv;
 
 		let cids = Object.keys(medulla.wsClients);
-		for (let id of cids)
-			medulla.wsClients[id].send('MEDSIG_MODIFY|'+updtype+'|'+mtype+'|'+surl+'|'+nurl);
+
+		let trs = 0;
+		const MAXTRS = 5;
+		const trySend = ()=>{
+			try {
+				for (let id of cids) {
+					medulla.wsClients[id].send('MEDSIG_MODIFY|'+updtype+'|'+mtype+'|'+surl+'|'+nurl);
+				}
+			} catch (e) {
+				trs++;
+				if (trs < MAXTRS) setTimeout(trySend, 100);
+			}
+		};
+
+		trySend();
 	};
 
 	medulla.ws.on('connection', ws=>{

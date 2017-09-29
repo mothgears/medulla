@@ -11,10 +11,12 @@ module.exports.medullaGlobal = medulla=>{
 
 //WORKER
 module.exports.medullaWorker = worker=> {
+	//LIBS
 	const
 		mod_path = require('path'),
-		mod_fs = require('fs');
+		mod_fs   = require('fs');
 
+	//
 	const reqLoaderByUrl = url => {
 		let loaderPath = worker.settings.loadersByExt[mod_path.extname(url)];
 		if (loaderPath) return require(loaderPath);
@@ -31,16 +33,19 @@ module.exports.medullaWorker = worker=> {
 	};
 
 	worker.toClient('window.process = {env:{}};');
-	worker.toClient('process.env.NODE_ENV = "production";');
-	worker.toClient('window.require_modules = window.require_modules || {};');
+	worker.toClient('process.env.NODE_ENV = "production";'); //<<
+	//worker.toClient('window.require_modules = window.require_modules || {};');
 
 	const clientModulesList = {};
 
-	const getFullPath = (mod, parent)=>{
+	const pathResolve = (mod, parent)=>{
 		let fp = mod;
 
+		//if (parent && (mod.startsWith('./') || mod.startsWith('/'))) fp = mod_path.resolve(parent, mod);
+		//else fp = mod_path.resolve(mod);
+
 		if (parent) {
-			if (mod.startsWith('./') || mod.indexOf('.js') >= 0) {
+			if (mod.startsWith('./') || mod_path.extname(mod) !== '') {
 				fp = mod_path.resolve(parent, mod);
 			} else {
 				try {
@@ -59,7 +64,7 @@ module.exports.medullaWorker = worker=> {
 	};
 
 	const addToFileSystem = (mod, parent = null)=>{
-		let fp = getFullPath(mod, parent);
+		let fp = pathResolve(mod, parent);
 
 		let content = '';
 
@@ -73,23 +78,30 @@ module.exports.medullaWorker = worker=> {
 			try {
 				content = mod_fs.readFileSync(mod, 'utf8');
 			} catch (e) {
-				content = mod_fs.readFileSync(fp, 'utf8');
-				isFP = true;
+				try {
+					content = mod_fs.readFileSync(fp, 'utf8');
+					isFP = true;
+				} catch (err) {
+					content = null;
+				}
 			}
 
-			let depends = worker.getRequires(content, r=>r, (process.env.mainWorker === '1')?fp:null);
-			for (let m of depends) addToFileSystem(m, mod_path.dirname(fp));
+			if (content !== null) {
+				let depends = worker.getRequires(content, r=>r, (process.env.mainWorker === '1')?fp:null);
+				for (let m of depends) addToFileSystem(m, mod_path.dirname(fp));
 
-			if (isFP) {
-				const CODE =
-					'\nrequire_modules["'+fp+'"] = function (module) {\n'+ content +'\n/**/};'
-					+'\nrequire_modules["'+mod+'"] = require_modules["'+fp+'"];';
-				worker.toClient(CODE);
-			} else {
-				worker.pluginsFileSystem[mod] = {bundle:true, reload:'force'};
-			}
+				if (isFP) {
+					const CODE =
+						'\nrequire_modules["'+fp+'"] = function (module) {\n'+ content +'\n/**/};'
+						+'\nrequire_modules["'+mod+'"] = require_modules["'+fp+'"];';
+					worker.toClient(CODE);
+				} else {
+					let loader = reqLoaderByUrl(mod);
+					worker.pluginsFileSystem[mod] = loader.params || {bundle:true};
+				}
 
-			clientModulesList[fp] = {isFP, mods: [mod]};
+				clientModulesList[fp] = {isFP, mods: [mod]};
+			} else console.error('Module "'+mod+'" not found, incorrect path to file.');
 		} else {
 			if (
 				clientModulesList[fp].isFP &&
@@ -102,21 +114,39 @@ module.exports.medullaWorker = worker=> {
 		}
 	};
 
+	let actualModulesList = null;
 	const checkFileSystem = (mod, parent)=>{
-		let fp = getFullPath(mod, parent);
+		let fp = pathResolve(mod, parent);
+		actualModulesList[fp] = true;
 
-		let depends = worker.getRequires(mod_fs.readFileSync(fp, 'utf8'), r=>r);
+		let actualDepends = null;
+		try {
+			actualDepends = worker.getRequires(mod_fs.readFileSync(fp, 'utf8'), r=>r);
+		} catch (e) {
+			fp = null;
+			actualDepends = [];
+		}
+
 		let added = false;
-		for (let m of depends) added = added || checkFileSystem(m, mod_path.dirname(fp));
-		return !clientModulesList[fp] || added;
+		for (let m of actualDepends) added = added || checkFileSystem(m, mod_path.dirname(fp))
+
+		//TRUE IF FILE ADDED OR PHISICALLY REMOVED
+		return !fp || !clientModulesList[fp] || added;
 	};
 
 	addToFileSystem(worker.settings.clientEntryPoint);
 
 	//[!] MODIFY CACHE
 	worker.onCacheModify = ()=>{
+		actualModulesList = {};
 		if (checkFileSystem(worker.settings.clientEntryPoint)) {
 			worker.restartServer();
+		} else {
+			let keys = Object.keys(clientModulesList);
+			for (let registred of keys) if (!actualModulesList[registred]) {
+				worker.restartServer();
+				return;
+			}
 		}
 	}
 };
