@@ -261,7 +261,9 @@ module.exports.launch = customSettings=>{
 		pluginsJS = 'window.medulla = {settings:'+JSON.stringify(publicSettings)+'};'+pluginsJS;
 
 		process.on('uncaughtException', err=>{
-			if (err.code === 'EPERM' && err.syscall === 'Error watching file for changes:') {
+			if (err.code === 'EMFILE') {
+				console.warn('Ignored error: EMFILE');
+			} else if (err.code === 'EPERM' && err.syscall === 'Error watching file for changes:') {
 				console.warn('Removing folder.');
 			} else {
 				//stopServer();
@@ -473,8 +475,8 @@ module.exports.launch = customSettings=>{
 							watchers[filepath] = fs.watch(filepath, {}, onFolderChange);
 							watchers[filepath].fileparam = fileparam;
 
-						} else if (fileparam.params.bundle && !settings.devMode) {
-							restartServer();
+						/*} else if (fileparam.params.bundle && !settings.devMode) {
+							restartServer();*/
 
 						} else {
 							let onFileChange = (eventType, fn)=>{

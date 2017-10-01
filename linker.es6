@@ -27,6 +27,10 @@ module.exports.medullaWorker = worker=> {
 	//[!] MODIFICATOR
 	worker.cacheModificator = (content, src, url) => {
 		let loader = reqLoaderByUrl(url);
+
+		//if (url.startsWith('./'))         url = url.substr(2);
+		//if (mod_path.extname(url) === '') url += '.js';
+
 		if (loader && loader.serversideModify) return loader.serversideModify(worker, url, content);
 
 		return content;
@@ -49,12 +53,12 @@ module.exports.medullaWorker = worker=> {
 				fp = mod_path.resolve(parent, mod);
 			} else {
 				try {
-					fp = worker.settings.bundler(mod);
+					fp = worker.settings.requireResolve(mod);
 				} catch (e) {}
 			}
 		} else {
 			try {
-				fp = worker.settings.bundler(mod);
+				fp = worker.settings.requireResolve(mod);
 			} catch (e) {}
 		}
 
@@ -76,9 +80,11 @@ module.exports.medullaWorker = worker=> {
 			let isFP = false;
 
 			try {
+				//console.info('RFS_1');
 				content = mod_fs.readFileSync(mod, 'utf8');
 			} catch (e) {
 				try {
+					//console.info('RFS_2');
 					content = mod_fs.readFileSync(fp, 'utf8');
 					isFP = true;
 				} catch (err) {
@@ -97,7 +103,12 @@ module.exports.medullaWorker = worker=> {
 					worker.toClient(CODE);
 				} else {
 					let loader = reqLoaderByUrl(mod);
-					worker.pluginsFileSystem[mod] = loader.params || {bundle:true};
+
+					let pfmod = mod;
+					//if (pfmod.startsWith('./'))         pfmod = pfmod.substr(2);
+					//if (mod_path.extname(pfmod) === '') pfmod += '.js';
+
+					worker.pluginsFileSystem[pfmod] = loader.params || {bundle:true};
 				}
 
 				clientModulesList[fp] = {isFP, mods: [mod]};
@@ -121,6 +132,7 @@ module.exports.medullaWorker = worker=> {
 
 		let actualDepends = null;
 		try {
+			//console.info('RFS_3');
 			actualDepends = worker.getRequires(mod_fs.readFileSync(fp, 'utf8'), r=>r);
 		} catch (e) {
 			fp = null;
@@ -139,7 +151,9 @@ module.exports.medullaWorker = worker=> {
 	//[!] MODIFY CACHE
 	worker.onCacheModify = ()=>{
 		actualModulesList = {};
-		if (checkFileSystem(worker.settings.clientEntryPoint)) {
+		if (!worker.settings.devMode) {
+			worker.restartServer();
+		} else if (checkFileSystem(worker.settings.clientEntryPoint)) {
 			worker.restartServer();
 		} else {
 			let keys = Object.keys(clientModulesList);

@@ -15,6 +15,10 @@ module.exports.params = {bundle:true, reload:'force'};
 
 module.exports.clientsideRequire = function() {
 	return function (path) {
+
+		//if (path.startsWith('./')) path = path.substr(2);
+		//if (mod_path.extname(pfmod) === '') pfmod += '.js';
+
 		var m = window.require_modules[path];
 		if (!m) {
 			console.error('medulla-linker: Module "'+path+'" not found, available modules:');

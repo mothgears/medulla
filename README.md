@@ -2,24 +2,25 @@
 Multithreaded node.js server.  
 
 ## Features
-- [**Multithreaded**](#common-variables) request handling.
+- **Multithreaded** request handling.
 - **Caching files in memory**, use it for scripts, styles, texts etc.
-- **Linking and packing client scripts as modules with "exports/require" functions like Node** (use Babel if you need es6 notation)
+- **Linking and packing client scripts as modules with "exports/require" functions** (use Babel if you need es6 notation)
 - **Automatic restart of the server** when app source files changing.
 - **Built-in proxy** for forwarding requests.
 - **Logging to files** for commands: `console.log() / .warn() / .error()`.
-- **Hot reload slyles and scripts, and auto refreshing page**
+- **Hot reload slyles and scripts, and auto refreshing page** in dev mode.
 - **Quickly start** of app developing.
 
-**(!)** *module in development, this is unstable version with incomplete functional.*  
+**(!)** *module in development, this is unstable version.*  
 
 ## Examples
-#### Simple "Hello World!"
-- `project/`
-  - `node_modules/`
-  - `package.json`
-  - **`launcher.conf.es6`**
-  - **`server.es6`**
+#### Simple server-side "Hello World!"
+**server.es6**
+```es6
+module.exports.onRequest = (io, req, res)=>{
+    io.send('Hello World!');
+};
+```
 
 **launcher.conf.es6**
 ```es6
@@ -33,18 +34,63 @@ require('medulla').launch({
 });
 ```
 
-**server.es6**
-```es6
-module.exports.onRequest = (io, req, res)=>{
-    io.send('Hello World!');
-};
-```
+**File structure**
+- `project/`
+  - `node_modules/`
+  - `package.json`
+  - **`launcher.conf.es6`**
+  - **`server.es6`**
 
 **To start**  
 Command: `node launcher.conf.es6 -dev`  
 Open in browser: `localhost:3000`
 
-#### Clientside "Hello world!" with scripts autoloading
+#### Client-side "Hello world!" with scripts auto-linking
+**server.es6**
+```es6
+module.exports.onRequest = io=>io.send('<div class="root"></div>');
+```
+
+**client.js**
+```js
+var sayHello = require('say-hello.js');
+require('styles.css');
+
+var container = document.querySelector('div.root');
+sayHello(container, 'world');
+```
+
+**say-hello.js**
+```js
+module.exports = function (container, to) {
+	container.innerHTML = 'Hello ' + to + '!';
+};
+```
+
+**styles.css**
+```css
+html {
+	background: #f0f0f0;
+	color: #090;
+	font-weight: bold;
+	font-family: sans-serif;
+}
+```
+
+**launcher.conf.js**
+```es6
+require('medulla').launch({
+	serverEntryPoint : "server.app.es6",
+	clientEntryPoint : "client.app.js",
+	platforms : {
+		"win32" : {"forcewatch":false},
+		"linux" : {"forcewatch":true}
+	},
+	requireResolve: m=>require.resolve(m)
+});
+```
+
+**File structure**
 - `project/`
   - `node_modules/`
   - `package.json`
@@ -52,42 +98,7 @@ Open in browser: `localhost:3000`
   - **`server.es6`**
   - **`client.js`**
   - **`say-hello.js`**
-
-**launcher.conf.js**
-```es6
-require('medulla').launch({
-    serverEntryPoint : "./server.es6",
-    clientEntryPoint : "./client.js",
-    port: 3000,
-    platforms : {
-        "win32" : {"forcewatch":false},
-        "linux" : {"forcewatch":true}
-    },
-    bundler: m=>require.resolve(m)
-});
-```
-
-**server.es6**
-```es6
-module.exports.onRequest = (io, req, res)=>{
-    io.send('<div class="hello-container"></div>');
-};
-```
-
-**client.js**
-```js
-var sayHello = require('say-hello.js').default;
-
-var container = document.querySelector('div.hello-container');
-sayHello(container, 'world');
-```
-
-**say-hello.js**
-```js
-exports.default = function (container, word) {
-	container.innerHTML = 'Hello ' + word + '!';
-};
-```
+  - **`styles.css`**
 
 **To start**  
 Command: `node launcher.conf.es6 -dev`  

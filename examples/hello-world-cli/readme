@@ -1,4 +1,4 @@
-Hello World on server use bundle mode
+Hello World on client
 
 To start:
 node launcher.conf.es6 -dev
