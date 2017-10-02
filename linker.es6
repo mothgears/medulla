@@ -38,7 +38,7 @@ module.exports.medullaWorker = worker=> {
 
 	worker.toClient('window.process = {env:{}};');
 	worker.toClient('process.env.NODE_ENV = "production";'); //<<
-	//worker.toClient('window.require_modules = window.require_modules || {};');
+	worker.toClient('window.require_modules = window.require_modules || {};');
 
 	const clientModulesList = {};
 

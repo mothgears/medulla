@@ -38,7 +38,8 @@ module.exports = {
 	},
 	loaders    : {
 		".js .es6" : "./loaders/loader-js.es6",
-		".css"     : "./loaders/loader-css.es6"
+		".css"     : "./loaders/loader-css.es6",
+		".txt"     : "./loaders/loader-txt.es6"
 	},
 	bundler: m=>require.resolve(m)
 };

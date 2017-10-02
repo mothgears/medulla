@@ -180,7 +180,9 @@ module.exports.launch = customSettings=>{
 			const acts = {
 				'cache-update' : updateCacheTotal,
 				'stop'         : stopServer,
-				'version'      : ()=>console.info(require('./package.json').version)
+				'-s'           : stopServer,
+				'version'      : ()=>console.info(require('./package.json').version),
+				'-v'           : ()=>console.info(require('./package.json').version)
 			};
 			(
 				acts[cmd] || (()=>{console.log('command not defined')})
@@ -200,6 +202,7 @@ module.exports.launch = customSettings=>{
 			ordersToStart    = 0,
 			watchers         = {},
 			watchTimeouts    = {},
+			lastChange       = {},
 			onRestartEnd     = [],
 			error            = null,
 			lauched          = 0,
@@ -397,9 +400,13 @@ module.exports.launch = customSettings=>{
 							let onFileChange = (eventType, fn)=>{
 								const onmod = ()=>{
 									//RESTART OR WISH TO RESTART
-									ordersToStart = 0;
-									for (let h of handlersModify) h(filepath, fileparam, restartServer);
-									restartServer();
+									const TS = Date.now();
+									if (!lastChange[fn] || TS - lastChange[fn] > 100) {
+										ordersToStart = 0;
+										for (let h of handlersModify) h(filepath, fileparam, restartServer);
+										restartServer();
+									}
+									lastChange[fn] = TS;
 
 									//FORCEWATCH
 									if (settings.forcewatch && watchers[filepath].noWatch) {
@@ -481,17 +488,20 @@ module.exports.launch = customSettings=>{
 						} else {
 							let onFileChange = (eventType, fn)=>{
 								const onmod = ()=>{
-									//console.log('DO CHANGE:'+type);
 
-									//UPDATE ALL WORKERS
-									if (fileparam.params.type === 'cached') sendMessage({
-										includeMedullaCode : fileparam.params.includeMedullaCode,
-										path               : filepath,
-										type               : 'updateCache',
-										url                : fileparam.params.url || filepath
-									});
+									const TS = Date.now();
+									if (!lastChange[fn] || TS - lastChange[fn] > 100) {
+										//UPDATE ALL WORKERS
+										if (fileparam.params.type === 'cached') sendMessage({
+											includeMedullaCode : fileparam.params.includeMedullaCode,
+											path               : filepath,
+											type               : 'updateCache',
+											url                : fileparam.params.url || filepath
+										});
 
-									for (let h of handlersModify) h(filepath, fileparam);
+										for (let h of handlersModify) h(filepath, fileparam);
+									}
+									lastChange[fn] = TS;
 
 									//FORCEWATCH
 									if (settings.forcewatch && watchers[filepath].noWatch) {
@@ -508,14 +518,13 @@ module.exports.launch = customSettings=>{
 											}, 250);
 										}
 									}
+
 									delete watchTimeouts[fn];
 								};
 								if (eventType === 'rename') {
-									//console.log('RENAME:'+fn);
 									if (!watchTimeouts[fn]) watchTimeouts[fn] = setTimeout(onmod, 25, 'async');
 									else if (settings.forcewatch) watchers[filepath].noWatch = true;
 								} else if (eventType === 'change') {
-									//console.log('CHANGE:'+fn);
 									if (watchTimeouts[fn]) clearTimeout(watchTimeouts[fn]);
 									onmod('sync');
 								}
@@ -988,7 +997,9 @@ module.exports.launch = customSettings=>{
 					//FOR EACH FILE
 					files.forEach(filename => {
 						let path = mod_path.resolve(pdir, filename);
-						let stat = fs.statSync(path);
+
+						let stat = null;
+						try {stat = fs.statSync(path);} catch (e) {}
 
 						let _ext = mod_path.extname(filename);
 						let _fln = mod_path.basename(filename, _ext?_ext:undefined);
