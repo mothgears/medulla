@@ -25,9 +25,15 @@ module.exports.clientsideRequire = function() {
 		} else if (typeof m === 'function') {
 			var exp = {default: null};
 			var newModule = {exports:exp};
+
+			let prevext = null;
+			if (window.exports) prevext = window.exports;
 			window.exports = exp;
+
 			m(newModule);
-			window.exports = null;
+
+			window.exports = prevext;
+
 			window.require_modules[path] = newModule;
 			m = newModule;
 		}
