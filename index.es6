@@ -513,8 +513,10 @@ module.exports.launch = customSettings=>{
 											setTimeout(()=>{
 												console.warn('used reserve watch: '+filepath);
 												if (watchers[filepath]) watchers[filepath].close();
-												watchers[filepath] = fs.watch(filepath, {}, onFileChange);
-												watchers[filepath].fileparam = fileparam;
+												try {
+													watchers[filepath] = fs.watch(filepath, {}, onFileChange);
+													watchers[filepath].fileparam = fileparam;
+												} catch (e) {}
 											}, 250);
 										}
 									}
