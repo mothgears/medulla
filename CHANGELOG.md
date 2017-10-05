@@ -1,6 +1,6 @@
 # Changelog
 
-## V 0.9.0 (dev)
+## V 0.10.0 (dev)
 ##### Changes
 - changed launch interface
 - hotcode plugin included to package
@@ -12,6 +12,7 @@
 ##### Fixes
 - added reserve watch-registrator
 - fixed proxy post
+- server error message format is fixed
 
 ## V 0.8.3
 ##### Fixes

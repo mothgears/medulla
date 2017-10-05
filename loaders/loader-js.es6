@@ -15,9 +15,21 @@ module.exports.params = {bundle:true, reload:'force'};
 
 module.exports.clientsideRequire = function() {
 	return function (path) {
+		var pathOrigin = path;
 		var m = window.require_modules[path];
+
 		if (!m) {
-			console.error('medulla-linker: Module "'+path+'" not found, available modules:');
+			if (!(path[0] === '.' && path[1] === '/')) path = './' + path;
+			m = window.require_modules[path];
+		}
+
+		if (!m) {
+			if (path[0] === '.' && path[1] === '/') path = path.slice(2);
+			m = window.require_modules[path];
+		}
+
+		if (!m) {
+			console.error('medulla-linker: Module "'+pathOrigin+'" not found, available modules:');
 			console.info(require_modules);
 
 			return null;
@@ -34,7 +46,7 @@ module.exports.clientsideRequire = function() {
 
 			window.exports = prevext;
 
-			window.require_modules[path] = newModule;
+			window.require_modules[pathOrigin] = newModule;
 			m = newModule;
 		}
 

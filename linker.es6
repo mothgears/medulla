@@ -28,8 +28,10 @@ module.exports.medullaWorker = worker=> {
 	worker.cacheModificator = (content, src, url) => {
 		let loader = reqLoaderByUrl(url);
 
-		//if (url.startsWith('./'))         url = url.substr(2);
+		//if (!url.startsWith('./')) url = './'+url;
 		//if (mod_path.extname(url) === '') url += '.js';
+
+		if (url.startsWith('./')) url = url.substr(2);
 
 		if (loader && loader.serversideModify) return loader.serversideModify(worker, url, content);
 
@@ -69,6 +71,8 @@ module.exports.medullaWorker = worker=> {
 
 	const addToFileSystem = (mod, parent = null)=>{
 		let fp = pathResolve(mod, parent);
+
+		if (mod.startsWith('./')) mod = mod.substr(2);
 
 		let content = '';
 

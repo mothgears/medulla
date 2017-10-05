@@ -183,7 +183,7 @@ module.exports.medullaClient = ()=>{
 			console.error(msg);
 			errbox.style.display = 'block';
 			msg = msg.split('|');
-			errbox.innerHTML = msg[0]+'<br><br>'+escapeHtml(msg[1]).replace(/ at /g,'<br>@ at');
+			errbox.innerHTML = msg[0]+'<br><br>'+escapeHtml(msg[1]).replace(/ at /g,'<br>@ at ');
 			serverCorrupted = true;
 		}
 	});

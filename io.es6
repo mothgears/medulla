@@ -77,7 +77,7 @@ class IO {
 			} catch (e) {
 				if (this.onResponseError) this.onResponseError(e);
 
-				let stack = e.stack.replace(/at/g, '<br>@ at');
+				let stack = e.stack.replace(/ at /g, '<br>@ at ');
 				this.response.writeHead(500, {"Content-Type": "text/html; charset=utf-8"});
 				this.response.write(`
 					<html>
