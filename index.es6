@@ -394,7 +394,7 @@ module.exports.launch = customSettings=>{
 							console.warn(`index err: "${filepath}" not found on server`);
 							continue;
 						}
-						console.info(`index add: "${filepath}"` + (fileparam.url?` as "${fileparam.url}"`:''));
+						//console.info(`index add: "${filepath}"` + (fileparam.url?` as "${fileparam.url}"`:''));
 
 						if (fileparam.module) {
 							let onFileChange = (eventType, fn)=>{

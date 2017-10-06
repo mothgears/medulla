@@ -17,7 +17,7 @@ module.exports.medullaWorker = worker=> {
 		mod_fs   = require('fs');
 
 	//
-	const reqLoaderByUrl = url => {
+	const getLoaderByUrl = url => {
 		let loaderPath = worker.settings.loadersByExt[mod_path.extname(url)];
 		if (loaderPath) return require(loaderPath);
 
@@ -26,10 +26,7 @@ module.exports.medullaWorker = worker=> {
 
 	//[!] MODIFICATOR
 	worker.cacheModificator = (content, src, url) => {
-		let loader = reqLoaderByUrl(url);
-
-		//if (!url.startsWith('./')) url = './'+url;
-		//if (mod_path.extname(url) === '') url += '.js';
+		let loader = getLoaderByUrl(url);
 
 		if (url.startsWith('./')) url = url.substr(2);
 
@@ -41,16 +38,62 @@ module.exports.medullaWorker = worker=> {
 	worker.toClient('window.process = {env:{}};');
 	worker.toClient('process.env.NODE_ENV = "production";'); //<<
 	worker.toClient('window.require_modules = window.require_modules || {};');
+	worker.toClient(()=>{
+		window.require_resolve = function(path) {
+			if (path.substr(0, 3) === '../') {
+				console.log(path);
+				path = window.require_filepath + path.substr(2);
+			}
+			return path;
+		}
+	});
 
 	const clientModulesList = {};
 
-	const pathResolve = (mod, parent)=>{
-		let fp = mod;
+	const pathResolve = (mod, parentFile, nodeModule)=>{
+		//if (parentFile === '/srv/www/oms.loc/www/lib/lab/react-demo/node_modules/redux/lib/index.js')
+		//	console.log('CHILDREN, pathResolve NODE MODULES:' + nodeModule);
+
+		let moduleStyle = false;
+
+		if (mod_path.extname(mod) === '') {
+			try {
+				mod = worker.settings.requireResolve(mod);
+				moduleStyle = true;
+				nodeModule = true;
+			} catch (e) {}
+
+			//if (mod_fs.existsSync(mod + '/index.js'))*/ mod += '/index.js';
+		}
+
+		if (!moduleStyle) {
+			let parentDir = process.cwd();
+			if (parentFile) parentDir = mod_path.dirname(parentFile);
+			mod = mod_path.resolve(parentDir, mod);
+			if (mod_path.extname(mod) === '') {
+				//console.log(mod);
+				mod += '.js';
+			}
+		}
+
+		//console.log(mod);
+
+		//if (parentFile === '/srv/www/oms.loc/www/lib/lab/react-demo/node_modules/redux/lib/index.js')
+		//	console.log('CHILDREN, his pathResolve NODE MODULES resulted:' + nodeModule);
+
+		return {
+			serverPath: mod,
+			browserPath: nodeModule ? null : mod.substr(process.cwd().length+1)
+		}
+
+		/*let fp = mod;
 
 		//if (parent && (mod.startsWith('./') || mod.startsWith('/'))) fp = mod_path.resolve(parent, mod);
 		//else fp = mod_path.resolve(mod);
 
 		if (parent) {
+			fp = mod_path.resolve(parent, mod);
+
 			if (mod.startsWith('./') || mod_path.extname(mod) !== '') {
 				fp = mod_path.resolve(parent, mod);
 			} else {
@@ -64,15 +107,24 @@ module.exports.medullaWorker = worker=> {
 			} catch (e) {}
 		}
 
-		if (mod_path.extname(fp) === '') fp += '.js';
+		fp = fp.substr(worker.settings.serverDir.length+1);
 
-		return fp;
+		//if (mod_path.extname(fp) === '') fp += '.js';
+
+		return fp;*/
 	};
 
-	const addToFileSystem = (mod, parent = null)=>{
-		let fp = pathResolve(mod, parent);
+	const addToFileSystem = (mod, parent = null, nodeModule = false)=>{
 
-		if (mod.startsWith('./')) mod = mod.substr(2);
+		//if (parent === '/srv/www/oms.loc/www/lib/lab/react-demo/node_modules/redux/lib/index.js')
+		//	console.log('CHILDREN, nodeModule from parent:' + nodeModule);
+
+		let {browserPath, serverPath} = pathResolve(mod, parent, nodeModule);
+
+		//if (parent === '/srv/www/oms.loc/www/lib/lab/react-demo/node_modules/redux/lib/index.js')
+		//	console.log('CHILDREN, from HIS resolves:' + Boolean(browserPath));
+
+		//if (mod.startsWith('./')) mod = mod.substr(2);
 
 		let content = '';
 
@@ -80,44 +132,64 @@ module.exports.medullaWorker = worker=> {
 			if (fp.indexOf('invariant') >= 0)
 				console.info('included: '+mod);*/
 
-		if (!clientModulesList[fp]) {
-			let isFP = false;
+		if (!clientModulesList[serverPath]) {
+			//let isFP = false;
 
 			try {
-				//console.info('RFS_1');
-				content = mod_fs.readFileSync(mod, 'utf8');
+				content = mod_fs.readFileSync(serverPath, 'utf8');
 			} catch (e) {
-				try {
-					//console.info('RFS_2');
+				content = null;
+
+				/*try {
 					content = mod_fs.readFileSync(fp, 'utf8');
 					isFP = true;
 				} catch (err) {
 					content = null;
-				}
+				}*/
 			}
 
 			if (content !== null) {
-				let depends = worker.getRequires(content, r=>r, (process.env.mainWorker === '1')?fp:null);
-				for (let m of depends) addToFileSystem(m, mod_path.dirname(fp));
+				if (mod_path.extname(serverPath) === '.js') {
+					let depends = worker.getRequires(content, r=>r);
+					//if (serverPath === '/srv/www/oms.loc/www/lib/lab/react-demo/node_modules/redux/lib/index.js')
+					//	console.log('THIS FILE, to childs:' + Boolean(browserPath));
+					for (let m of depends) addToFileSystem(m, serverPath, !Boolean(browserPath));
+				}
 
-				if (isFP) {
+				//>> LOADER IN BROWSER OR TOTAL? <<
+				if (browserPath) {
+					let loader = getLoaderByUrl(browserPath);
+					worker.pluginsFileSystem[serverPath] = loader.params || {bundle:true, url:browserPath};
+				} else {
 					const CODE =
-						'\nrequire_modules["'+fp+'"] = function (module) {\n'+ content +'\n/**/};'
-						+'\nrequire_modules["'+mod+'"] = require_modules["'+fp+'"];';
+						'\n'+'require_modules["'+serverPath+'"] = function (module) {' +
+						'\n'+'window.require_filepath = "'+serverPath+'";'+
+						'\n'+ content +'\n/**//*};';
+					worker.toClient(CODE);
+				}
+
+				/*if (isFP) {
+					const CODE =
+						'\n'+'require_modules["'+fp+'"] = function (module) {' +
+						'\n'+'window.require_filepath = "'+fp+'";'+
+						'\n'+ content +'\n/**//*};'+
+						'\n'+'require_modules["'+mod+'"] = require_modules["'+fp+'"];';
 					worker.toClient(CODE);
 				} else {
-					let loader = reqLoaderByUrl(mod);
+					let loader = getLoaderByUrl(mod);
 
-					let pfmod = mod;
+					//let pfmod = mod;
 					//if (pfmod.startsWith('./'))         pfmod = pfmod.substr(2);
 					//if (mod_path.extname(pfmod) === '') pfmod += '.js';
 
-					worker.pluginsFileSystem[pfmod] = loader.params || {bundle:true};
-				}
+					worker.pluginsFileSystem[mod] = loader.params || {bundle:true};
+				}*/
 
-				clientModulesList[fp] = {isFP, mods: [mod]};
-			} else console.error('Module "'+mod+'" not found, incorrect path to file.');
-		} else {
+				clientModulesList[serverPath] = true;//{isFP, mods: [mod]};
+
+
+			} else console.error('Module "'+serverPath+'" not found, incorrect path to file.');
+		} /*else {
 			if (
 				clientModulesList[fp].isFP &&
 				clientModulesList[fp].mods.indexOf(mod) < 0
@@ -126,28 +198,32 @@ module.exports.medullaWorker = worker=> {
 				const CODE = '\nrequire_modules["'+mod+'"] = require_modules["'+fp+'"];';
 				worker.toClient(CODE);
 			}
-		}
+		}*/
 	};
 
 	let actualModulesList = null;
-	const checkFileSystem = (mod, parent)=>{
-		let fp = pathResolve(mod, parent);
-		actualModulesList[fp] = true;
 
-		let actualDepends = null;
-		try {
-			//console.info('RFS_3');
-			actualDepends = worker.getRequires(mod_fs.readFileSync(fp, 'utf8'), r=>r);
-		} catch (e) {
-			fp = null;
-			actualDepends = [];
-		}
+	const checkFileSystem = (mod, parentFile = null)=>{
+		/*let {browserPath, serverPath} = pathResolve(mod, parentFile);
+		actualModulesList[serverPath] = true;
 
 		let added = false;
-		for (let m of actualDepends) added = added || checkFileSystem(m, mod_path.dirname(fp))
+
+		if (mod_path.extname(serverPath) === '.js') {
+			let actualDepends = null;
+			try {
+				actualDepends = worker.getRequires(mod_fs.readFileSync(serverPath, 'utf8'), r=>r);
+			} catch (e) {
+				serverPath = null;
+				actualDepends = [];
+			}
+
+			for (let m of actualDepends) added = added || checkFileSystem(m, serverPath)
+		}
 
 		//TRUE IF FILE ADDED OR PHISICALLY REMOVED
-		return !fp || !clientModulesList[fp] || added;
+		return !mod_fs.existsSync(serverPath) || !clientModulesList[serverPath] || added;*/
+		return false;
 	};
 
 	addToFileSystem(worker.settings.clientEntryPoint);

@@ -23,7 +23,7 @@ const removeComments2 = (str)=>{
 		.replace(/\/\/.+?(?=\n|\r|$)|\/\*[\s\S]+?\*\//g, '');
 };
 
-module.exports = (mcode0, resolve = require.resolve,  debug_name)=>{
+module.exports = (mcode0, resolve = require.resolve)=>{
 	//if (debug_name && debug_name.indexOf('createNodesFromMarkup.js') >= 0) console.log('DEBUGA!');
 
 	let requires = [];
