@@ -395,6 +395,7 @@ module.exports.launch = customSettings=>{
 							continue;
 						}
 						//console.info(`index add: "${filepath}"` + (fileparam.url?` as "${fileparam.url}"`:''));
+						//console.info(fileparam);
 
 						if (fileparam.module) {
 							let onFileChange = (eventType, fn)=>{
@@ -790,7 +791,7 @@ module.exports.launch = customSettings=>{
 								return;
 							}
 
-							for (let cm of cacheModificators) content = cm(content, msg.path, msg.url);
+							for (let cm of cacheModificators) content = cm(content, msg.path, msg.url, null, false);
 							if (typeof content === 'string') cache[msg.url] = {
 								content,
 								srcPath            : msg.path,
@@ -811,7 +812,7 @@ module.exports.launch = customSettings=>{
 						fs.readFile(cache[url].srcPath, 'utf8', (err, content) => {
 							if (err) return;
 							for (let cm of cacheModificators) {
-								content = cm(content, cache[url].srcPath, url);
+								content = cm(content, cache[url].srcPath, url, null, false);
 							}
 							if (typeof content === 'string') cache[url].content = content;
 							counter--;
@@ -847,7 +848,7 @@ module.exports.launch = customSettings=>{
 
 		try {
 			if (typeof settings.serverEntryPoint === 'string') {
-				mm = require(mod_path.resolve(settings.serverDir, settings.serverEntryPoint))
+				mm = require(mod_path.resolve(process.cwd(), settings.serverEntryPoint));
 			} else if (typeof settings.serverEntryPoint === 'function') {
 				settings.serverEntryPoint(mm);
 			}
@@ -931,7 +932,7 @@ module.exports.launch = customSettings=>{
 				if (params.type === 'cached') {
 					try {
 						let content = code || fs.readFileSync(filepath, 'utf8');
-						for (let cm of cacheModificators) content = cm(content, filepath, params.url || filepath);
+						for (let cm of cacheModificators) content = cm(content, filepath, params.url || filepath, params.moduleAlias, params.isLib);
 						if (typeof content === 'string') cache[params.url || filepath] = {
 							content,
 							srcPath            : filepath,

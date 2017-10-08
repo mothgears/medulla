@@ -37,7 +37,7 @@ module.exports = {
 		autoreload: 0
 	},
 	loaders    : {
-		".js .es6" : "./loaders/loader-js.es6",
+		" .js .es6" : "./loaders/loader-js.es6",
 		".css"     : "./loaders/loader-css.es6",
 		".txt"     : "./loaders/loader-txt.es6"
 	},

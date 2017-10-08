@@ -1,10 +1,20 @@
-module.exports.serversideModify = (worker, url, content)=>{
-	const CODE =
-		'(window.require_modules = window.require_modules || {})["'+url+'"] = function (module) {'+
-		'\n'+'window.require_filepath = "";'+
-		'\n'+ content +'\n/**/};';
+module.exports.serversideModify = (worker, url, content, alias, hotloaded)=>{
+	const mod_path = require('path');
 
-	if (worker.settings.devMode) {
+	let urldir = mod_path.dirname(url);
+	if (urldir === '.') urldir = '';
+
+	let CODE =
+		'\n'+'(window.require_modules = window.require_modules || {})["host:/'+url+'"] = function (module) {'+
+		'\n'+'window.require_filedir = "'+urldir+'";'+
+		'\n'+ content +
+		'\n'+'/**/window.require_filedir = null;};';
+
+	if (alias) {
+		CODE += '\n'+'window.require_modules["'+alias+'"] = window.require_modules["host:/'+url+'"];';
+	}
+
+	if (worker.settings.devMode && hotloaded) {
 		worker.toClient(`<script src="${url}"></script>`);
 		return CODE;
 	} else {
@@ -13,34 +23,16 @@ module.exports.serversideModify = (worker, url, content)=>{
 	}
 };
 
-module.exports.params = {bundle:true, reload:'force'};
+module.exports.params = ()=> ({reload:'force'});
 
 module.exports.clientsideRequire = function() {
 	return function (path) {
 		path = require_resolve(path);
 
-		var pathOrigin = path;
-		if (path.slice(-3) !== '.js') path += '.js';
 		var m = window.require_modules[path];
 
 		if (!m) {
-			if (path.substr(0, 2) === './') {
-				m =
-					window.require_modules[path.substr(1)] ||
-					window.require_modules[path.substr(2)];
-			} else if (path.substr(0, 1) === '/') {
-				m =
-					window.require_modules['.'+path] ||
-					window.require_modules[path.substr(1)];
-			} else if (path[0] !== '/' && path[0] !== '.') {
-				m =
-					window.require_modules['/' + path] ||
-					window.require_modules['./' + path];
-			}
-		}
-
-		if (!m) {
-			console.error('medulla-linker: Module "'+pathOrigin+'" not found, available modules:');
+			console.error('medulla-linker: Module "'+path+'" not found, available modules:');
 			console.info(require_modules);
 
 			return null;
@@ -52,16 +44,15 @@ module.exports.clientsideRequire = function() {
 			let prevext = null;
 			let prevpath = null;
 			if (window.exports) prevext = window.exports;
-			if (window.require_filepath) prevpath = window.require_filepath;
+			if (window.require_filedir) prevpath = window.require_filedir;
 			window.exports = exp;
-			//window.require_filepath = '';
 
 			m(newModule);
 
-			window.require_filepath = prevpath;
+			window.require_filedir = prevpath;
 			window.exports = prevext;
 
-			window.require_modules[pathOrigin] = newModule;
+			window.require_modules[path] = newModule;
 			m = newModule;
 		}
 
