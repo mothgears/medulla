@@ -1,6 +1,6 @@
 {
   "name": "medulla",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "node.js multithreaded server with caching files, client script bundling, hot page/script/styles reload and proxy mode",
   "main": "index.es6",
   "dependencies": {

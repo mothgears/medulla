@@ -82,7 +82,7 @@ module.exports.medullaWorker = worker=> {
 		const originMod = mod;
 
 		if (mod.startsWith('./') || mod.startsWith('../')) { //ITS RELATIVE PATH
-			let parentDir = process.cwd();
+			let parentDir = worker.settings.serverDir;
 			if (parentFile) parentDir = mod_path.dirname(parentFile);
 			mod = mod_path.resolve(parentDir, mod);
 

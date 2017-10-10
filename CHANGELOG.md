@@ -1,6 +1,10 @@
 # Changelog
 
-## V 0.10.0 (dev)
+## V 0.10.1
+##### Fixes
+- serverDir fix 
+
+## V 0.10.0
 ##### Changes
 - changed launch interface
 - hotcode plugin included to package

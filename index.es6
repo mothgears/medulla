@@ -848,7 +848,7 @@ module.exports.launch = customSettings=>{
 
 		try {
 			if (typeof settings.serverEntryPoint === 'string') {
-				mm = require(mod_path.resolve(process.cwd(), settings.serverEntryPoint));
+				mm = require(mod_path.resolve(settings.serverDir, settings.serverEntryPoint));
 			} else if (typeof settings.serverEntryPoint === 'function') {
 				settings.serverEntryPoint(mm);
 			}
