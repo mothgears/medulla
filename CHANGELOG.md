@@ -1,5 +1,9 @@
 # Changelog
 
+## V 0.10.2
+##### Fixes
+- es6 linker fix 
+
 ## V 0.10.1
 ##### Fixes
 - serverDir fix 

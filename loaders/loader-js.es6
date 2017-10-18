@@ -25,6 +25,25 @@ module.exports.serversideModify = (worker, url, content, alias, hotloaded)=>{
 
 module.exports.params = ()=> ({reload:'force'});
 
+module.exports.addToFileSystem = (worker, content, serverPath, isLib, addToFileSystem)=>{
+	let depends = worker.getRequires(content, r=>r);
+	for (let m of depends) addToFileSystem(m, serverPath, isLib);
+};
+
+module.exports.checkFileSystem = (worker, serverPath, added, checkFileSystem)=>{
+	let actualDepends = null;
+	try {
+		actualDepends = worker.getRequires(mod_fs.readFileSync(serverPath, 'utf8'), r=>r);
+	} catch (e) {
+		serverPath = null;
+		actualDepends = [];
+	}
+
+	for (let m of actualDepends) added = added || checkFileSystem(m, serverPath);
+
+	return added;
+};
+
 module.exports.clientsideRequire = function() {
 	return function (path) {
 		path = require_resolve(path);

@@ -47,7 +47,8 @@ module.exports.medullaWorker = worker=> {
 			if (path.indexOf('/') < 0) return path;
 
 			//IS JS FILE
-			if (path.slice(-3) !== '.js') path += '.js';
+			const li = path.lastIndexOf('/');
+			if (path.indexOf('.', li<0?0:li) < 0) path += '.js';
 
 			var dir = window.require_filedir || '';
 			if (dir) dir += '/';
@@ -136,12 +137,12 @@ module.exports.medullaWorker = worker=> {
 				}
 
 				if (content !== null) {
-					if (mod_path.extname(serverPath) === '.js') {
-						let depends = worker.getRequires(content, r=>r);
-						for (let m of depends) addToFileSystem(m, serverPath, isLib);
+					let loader = getLoaderByUrl(browserPath);
+
+					if (loader.addToFileSystem) {
+						loader.addToFileSystem(worker, content, serverPath, isLib, addToFileSystem);
 					}
 
-					let loader = getLoaderByUrl(browserPath);
 					let params = loader.params();
 					params.bundle      = true;
 					params.url         = browserPath;
@@ -165,16 +166,9 @@ module.exports.medullaWorker = worker=> {
 
 		let added = false;
 
-		if (mod_path.extname(serverPath) === '.js') {
-			let actualDepends = null;
-			try {
-				actualDepends = worker.getRequires(mod_fs.readFileSync(serverPath, 'utf8'), r=>r);
-			} catch (e) {
-				serverPath = null;
-				actualDepends = [];
-			}
-
-			for (let m of actualDepends) added = added || checkFileSystem(m, serverPath)
+		let loader = getLoaderByUrl(serverPath);
+		if (loader.checkFileSystem) {
+			added = loader.checkFileSystem(worker, serverPath, added, checkFileSystem);
 		}
 
 		//TRUE IF FILE ADDED OR PHISICALLY REMOVED

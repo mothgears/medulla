@@ -223,7 +223,7 @@ module.exports.launch = customSettings=>{
 				let body = func.toString();
 				body = body.slice(body.indexOf("{")+1, body.lastIndexOf("}"));
 				pluginsJS += '\n(()=>{\n'+body+'\n})();\n';
-			} else if (func.startsWith('./') && func.endsWith('.js')) {
+			} else if (func.startsWith('./') && (func.endsWith('.js') || func.endsWith('.es6'))) {
 				pluginsJS += fs.readFileSync(require.resolve(func), 'utf8');
 			} else pluginsJS += func;
 		};
